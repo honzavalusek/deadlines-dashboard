@@ -1,0 +1,23 @@
+# Secrets — never commit
+.env
+
+# Virtualenv
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Local database and LLM extraction cache
+*.db
+*.sqlite3
+data/.cache/
+
+# Throwaway spike (see README: de-risking step)
+spike.py
+
+# macOS
+.DS_Store

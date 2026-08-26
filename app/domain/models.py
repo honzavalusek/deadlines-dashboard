@@ -358,3 +358,27 @@ class AnalysisOutcome(BaseModel):
     @property
     def total_cost_usd(self) -> float:
         return sum(t.cost_usd for t in self.traces)
+
+
+# --------------------------------------------------------------------------
+# Engine outputs (what the port returns)
+# --------------------------------------------------------------------------
+
+
+class ExtractionOutput(BaseModel):
+    """Stage 1 across every thread, plus what it cost.
+
+    The engine owns the fan-out rather than the service, so provider-specific
+    concurrency and retry policy stays inside the adapter that needs it.
+    """
+
+    per_thread: dict[str, ThreadExtraction] = Field(default_factory=dict)
+    trace: StageTrace
+    warnings: list[str] = Field(default_factory=list)
+
+
+class PrioritizationOutput(BaseModel):
+    result: PrioritizationResult
+    trace: StageTrace
+    thinking_summary: str = ""
+    warnings: list[str] = Field(default_factory=list)

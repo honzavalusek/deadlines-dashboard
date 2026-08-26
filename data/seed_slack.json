@@ -1,0 +1,171 @@
+{
+  "_comment": [
+    "Fake Slack export. Deliberately adversarial: see README.",
+    "'now' for the demo is 2026-09-02T09:00+02:00 (Wednesday), set via NOW_OVERRIDE.",
+    "thread_key stands in for (channel_id, thread_ts); a real adapter would map those."
+  ],
+  "messages": [
+    {
+      "owner_email": "jan@example.com",
+      "thread_key": "slack:legal-ops:msa-redlines",
+      "external_id": "slack:legal-ops:msa-redlines:1",
+      "channel": "#legal-ops",
+      "author": "Petra Nováková",
+      "sent_at": "2026-08-31T09:40:00+02:00",
+      "body": "Honzo, protistrana poslala redlines k MSA. Potřebujeme je zpátky u našeho counsela do čtvrtka 3. 9., jinak nestihneme signing."
+    },
+    {
+      "owner_email": "jan@example.com",
+      "thread_key": "slack:legal-ops:msa-redlines",
+      "external_id": "slack:legal-ops:msa-redlines:2",
+      "channel": "#legal-ops",
+      "author": "Jan Valušek",
+      "sent_at": "2026-08-31T09:52:00+02:00",
+      "body": "Beru si to, projdu to a pošlu."
+    },
+    {
+      "owner_email": "jan@example.com",
+      "thread_key": "slack:product:roadmap-deck",
+      "external_id": "slack:product:roadmap-deck:1",
+      "channel": "#product",
+      "author": "Tomáš Dvořák",
+      "sent_at": "2026-08-31T14:05:00+02:00",
+      "body": "Honzo, potřebuju roadmap deck na QBR. Zvládneš to do pátku?"
+    },
+    {
+      "owner_email": "jan@example.com",
+      "thread_key": "slack:product:roadmap-deck",
+      "external_id": "slack:product:roadmap-deck:2",
+      "channel": "#product",
+      "author": "Jan Valušek",
+      "sent_at": "2026-08-31T14:11:00+02:00",
+      "body": "Jo, do pátku to dám."
+    },
+    {
+      "owner_email": "jan@example.com",
+      "thread_key": "slack:product:roadmap-deck",
+      "external_id": "slack:product:roadmap-deck:3",
+      "channel": "#product",
+      "author": "Tomáš Dvořák",
+      "sent_at": "2026-09-01T11:30:00+02:00",
+      "body": "Změna plánu — Petra má dovolenou a bez jejích čísel to nedáme dohromady. Posuňme to na pondělí."
+    },
+    {
+      "owner_email": "jan@example.com",
+      "thread_key": "slack:product:roadmap-deck",
+      "external_id": "slack:product:roadmap-deck:4",
+      "channel": "#product",
+      "author": "Jan Valušek",
+      "sent_at": "2026-09-01T11:34:00+02:00",
+      "body": "Ok, tak pondělí."
+    },
+    {
+      "owner_email": "jan@example.com",
+      "thread_key": "slack:eng:pricing-copy",
+      "external_id": "slack:eng:pricing-copy:1",
+      "channel": "#eng",
+      "author": "Jana Horáková",
+      "sent_at": "2026-09-01T13:15:00+02:00",
+      "body": "Honzo, kdy můžeme pustit press release k tomu partnerství?"
+    },
+    {
+      "owner_email": "jan@example.com",
+      "thread_key": "slack:eng:pricing-copy",
+      "external_id": "slack:eng:pricing-copy:2",
+      "channel": "#eng",
+      "author": "Jan Valušek",
+      "sent_at": "2026-09-01T13:22:00+02:00",
+      "body": "Pustíme to hned jak legal odsouhlasí MSA. Do té doby to nemá cenu finalizovat, stejně by se to přepisovalo."
+    },
+    {
+      "owner_email": "jan@example.com",
+      "thread_key": "slack:general:chitchat",
+      "external_id": "slack:general:chitchat:1",
+      "channel": "#general",
+      "author": "Jana Horáková",
+      "sent_at": "2026-09-01T18:02:00+02:00",
+      "body": "Skvělá práce na tom launchi všichni 🎉"
+    },
+    {
+      "owner_email": "jan@example.com",
+      "thread_key": "slack:general:chitchat",
+      "external_id": "slack:general:chitchat:2",
+      "channel": "#general",
+      "author": "Jan Valušek",
+      "sent_at": "2026-09-01T18:10:00+02:00",
+      "body": "Měli bychom někdy uklidit ten wiki prostor, je to tam nepřehledné."
+    },
+    {
+      "owner_email": "jan@example.com",
+      "thread_key": "slack:general:chitchat",
+      "external_id": "slack:general:chitchat:3",
+      "channel": "#general",
+      "author": "Tomáš Dvořák",
+      "sent_at": "2026-09-02T08:30:00+02:00",
+      "body": "Kdo jde na obed? Ve 12:00 dole?"
+    },
+    {
+      "owner_email": "jan@example.com",
+      "thread_key": "slack:general:chitchat",
+      "external_id": "slack:general:chitchat:4",
+      "channel": "#general",
+      "author": "deploy-bot",
+      "sent_at": "2026-09-02T08:31:00+02:00",
+      "body": "Deployed api-gateway v2.14.1 to production. All health checks green."
+    },
+    {
+      "owner_email": "jan@example.com",
+      "thread_key": "slack:dm-lucie:finance",
+      "external_id": "slack:dm-lucie:finance:1",
+      "channel": "DM with Lucie Krejčí",
+      "author": "Lucie Krejčí",
+      "sent_at": "2026-08-28T10:00:00+02:00",
+      "body": "Honzo, výkaz nákladů za srpen měl být hotový minulý pátek a pořád tam nic není. Doplň to prosím, blokuje mi to uzávěrku."
+    },
+    {
+      "owner_email": "jan@example.com",
+      "thread_key": "slack:dm-lucie:finance",
+      "external_id": "slack:dm-lucie:finance:2",
+      "channel": "DM with Lucie Krejčí",
+      "author": "Lucie Krejčí",
+      "sent_at": "2026-08-28T10:01:00+02:00",
+      "body": "A ještě bych potřebovala seznam klientů pro audit, do pondělí."
+    },
+    {
+      "owner_email": "jan@example.com",
+      "thread_key": "slack:dm-lucie:finance",
+      "external_id": "slack:dm-lucie:finance:3",
+      "channel": "DM with Lucie Krejčí",
+      "author": "Jan Valušek",
+      "sent_at": "2026-08-31T16:40:00+02:00",
+      "body": "Seznam klientů hotovo, poslal jsem ti ho na mail. Výkaz dodělám."
+    },
+    {
+      "owner_email": "jan@example.com",
+      "thread_key": "slack:pricing:launch-copy",
+      "external_id": "slack:pricing:launch-copy:1",
+      "channel": "#pricing",
+      "author": "Jana Horáková",
+      "sent_at": "2026-09-01T15:20:00+02:00",
+      "body": "Pricing page pořád nemá finální copy a launch je 7. 9. Musíme to shipnout do pátku, jinak nám to blokne celý launch."
+    },
+    {
+      "owner_email": "jan@example.com",
+      "thread_key": "slack:marketing:blog-alt-text",
+      "external_id": "slack:marketing:blog-alt-text:1",
+      "channel": "#marketing",
+      "author": "Marek Šimek",
+      "sent_at": "2026-09-01T16:00:00+02:00",
+      "body": "Honzo, můžeš do čtvrtka doplnit alt texty u obrázků na blogu? Není to nic urgentního, ať to jen máme hotové."
+    },
+    {
+      "owner_email": "petra@example.com",
+      "thread_key": "slack:legal-ops:acme-dpa",
+      "external_id": "slack:legal-ops:acme-dpa:1",
+      "channel": "#legal-ops",
+      "author": "Petra Nováková",
+      "sent_at": "2026-08-31T13:05:00+02:00",
+      "body": "DPA pro Acme si beru já, dodám do 3. 9."
+    }
+  ]
+}

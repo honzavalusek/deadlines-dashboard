@@ -165,11 +165,19 @@ def to_json(view: dict[str, Any]) -> dict[str, Any]:
         }
 
     run = view["run"]
+    # Globally ordered by sort_key, NOT grouped by bucket. Each entry carries its
+    # bucket so a client can group, but the list order is the canonical judgment
+    # order — walking the bucket groups instead would silently discard it, since
+    # a critical item due next week sorts after a trivial one due tomorrow.
+    board = sorted(
+        (e for bucket in view["buckets"] for e in bucket[2]),
+        key=sort_key,
+    )
     return {
         "as_of": view["now"].isoformat(),
         "engine": run.engine,
         "daily_briefing": run.daily_briefing,
-        "board": [item(e) for bucket in view["buckets"] for e in bucket[2]],
+        "board": [item(e) for e in board],
         "off_board": {
             "completed": [item(e) for e in view["completed"]],
             "detected_done": [item(e) for e in view["detected_done"]],

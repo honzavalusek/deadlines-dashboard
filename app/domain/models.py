@@ -305,3 +305,56 @@ class ScoredCommitment(BaseModel):
 
 
 Commitment.model_rebuild()
+
+
+# --------------------------------------------------------------------------
+# Run-level results
+# --------------------------------------------------------------------------
+
+
+class StageTrace(BaseModel):
+    """What one LLM stage actually cost.
+
+    Rendered in the audit footer. The point is to make the model-tiering claim
+    checkable — two stages at visibly different models and effort levels, with
+    real token counts — rather than a sentence in a README.
+    """
+
+    stage: str
+    model: str
+    effort: str
+    calls: int = 0
+    input_tokens: int = 0
+    output_tokens: int = 0
+    cached_tokens: int = 0
+    latency_ms: int = 0
+
+    @property
+    def cost_usd(self) -> float:
+        """Rough estimate at Sonnet 5 list price. Labelled as an estimate in the
+        UI; exact billing is not the point, order of magnitude is."""
+        per_mtok_in, per_mtok_out = 3.0, 15.0
+        return (self.input_tokens * per_mtok_in + self.output_tokens * per_mtok_out) / 1_000_000
+
+
+class DismissedThreadInfo(BaseModel):
+    thread_key: str
+    thread_label: str
+    source: Source
+    reason: str
+
+
+class AnalysisOutcome(BaseModel):
+    """Everything one pipeline run produced."""
+
+    scored: list[ScoredCommitment] = Field(default_factory=list)
+    dismissed: list[DismissedThreadInfo] = Field(default_factory=list)
+    daily_briefing: str = ""
+    thinking_summary: str = ""
+    traces: list[StageTrace] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    engine: str = "stub"
+
+    @property
+    def total_cost_usd(self) -> float:
+        return sum(t.cost_usd for t in self.traces)

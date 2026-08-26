@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Sign in — Deadlines{% endblock %}
+{% block content %}
+<div class="login-wrap">
+  <form method="post" action="/login" class="card login">
+    <h1>Sign in</h1>
+    {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+    <label>Email
+      <input type="email" name="email" autocomplete="username" required autofocus>
+    </label>
+    <label>Password
+      <input type="password" name="password" autocomplete="current-password" required>
+    </label>
+    <button class="btn-primary" type="submit">Sign in</button>
+    <p class="hint">
+      Demo users: <code>jan@example.com</code> and <code>petra@example.com</code>.<br>
+      Each sees only their own conversations — sign in as the other to check.
+    </p>
+  </form>
+</div>
+{% endblock %}

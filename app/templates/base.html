@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Deadlines{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">Deadlines<span class="brand-dim">/radar</span></div>
+    {% if user is defined and user %}
+      <div class="topbar-right">
+        <span class="who">{{ user.display_name }}</span>
+        <form method="post" action="/logout" class="inline"><button class="btn-plain">Sign out</button></form>
+      </div>
+    {% endif %}
+  </header>
+  <main>{% block content %}{% endblock %}</main>
+</body>
+</html>

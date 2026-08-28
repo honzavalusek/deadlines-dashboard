@@ -21,3 +21,5 @@ spike.py
 
 # macOS
 .DS_Store
+
+.idea/

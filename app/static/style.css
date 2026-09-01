@@ -174,3 +174,35 @@ summary:hover { color: var(--ink); }
 .thinking { margin-top: 10px; }
 .thinking pre { white-space: pre-wrap; font-size: 12.5px; color: var(--dim);
                 background: var(--bg); padding: 10px; border-radius: 7px; }
+
+/* --- loading overlay ---------------------------------------------------
+   A non-closeable modal: no close button, no click-outside handler, no
+   Escape listener. Nothing dismisses it early — the only way off this
+   screen is the real page reload once the pipeline actually finishes. */
+.overlay {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(15, 17, 21, .85);
+  backdrop-filter: blur(3px);
+  display: flex; align-items: center; justify-content: center;
+  animation: fade-in .18s ease-out;
+}
+/* Author `display: flex` above beats the UA stylesheet's `[hidden]` rule
+   whatever the specificity, so the attribute needs an explicit guard or the
+   modal is on screen from page load. */
+.overlay[hidden] { display: none; }
+.overlay-box {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+  padding: 34px 40px; display: flex; flex-direction: column; align-items: center;
+  gap: 16px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,.5);
+  animation: pop-in .18s ease-out;
+}
+.overlay-title { margin: 0; color: var(--ink); font-size: 15.5px; font-weight: 650; }
+.overlay-sub { margin: 0; color: var(--dim); font-size: 13px; }
+.spinner {
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 3px solid var(--line); border-top-color: var(--accent);
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pop-in { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }

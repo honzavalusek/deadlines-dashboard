@@ -11,9 +11,9 @@ from datetime import datetime, timezone
 
 import pytest
 
-from app.adapters.stub_engine import StubCommitmentEngine
 from app.db.repositories import CompletionRepository, MessageRepository, UserRepository
 from app.services.radar import run_analysis
+from tests.fakes import StubCommitmentEngine
 
 
 async def _analyse(session_factory, user_id, settings, *, with_marks: bool = True):

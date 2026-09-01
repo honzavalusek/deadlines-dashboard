@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 """Score a real engine against the fixture's known-correct answers.
 
-The point: the model and effort choice should be *evidenced*, not asserted. The
-stub engine already encodes what a correct analysis of each adversarial thread
-looks like, so a real run can be diffed against it mechanically instead of
-eyeballed.
+The point: the model and effort choice should be *evidenced*, not asserted.
+``tests/fakes.py`` already encodes what a correct analysis of each adversarial
+thread looks like; the checks below assert the same expectations against a
+real Claude run instead of eyeballing it.
 
     python scripts/eval_models.py                          # current .env config
     python scripts/eval_models.py --sweep                  # a few (model, effort) pairs
@@ -25,7 +25,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.adapters.stub_engine import EXPECTED_EXTRACTIONS  # noqa: E402
 from app.config import Settings  # noqa: E402
 from app.db import session as dbs  # noqa: E402
 from app.db.repositories import MessageRepository, UserRepository  # noqa: E402
@@ -131,15 +130,10 @@ def evaluate(commitments: list[Commitment], board_order: list[str]) -> list[Chec
     return checks
 
 
-async def run_one(settings: Settings, use_stub: bool = False) -> tuple[list[Check], str]:
-    if use_stub:
-        from app.adapters.stub_engine import StubCommitmentEngine
+async def run_one(settings: Settings) -> tuple[list[Check], str]:
+    from app.adapters.claude_engine import ClaudeCommitmentEngine
 
-        engine = StubCommitmentEngine()
-    else:
-        from app.adapters.cached_engine import build_claude_engine
-
-        engine = build_claude_engine(settings)
+    engine = ClaudeCommitmentEngine(settings)
 
     dbs.init_engine(settings.database_url)
     async with dbs.get_sessionmaker()() as db:
@@ -186,22 +180,12 @@ async def main() -> None:
     parser.add_argument("--prioritize-effort")
     parser.add_argument("--sweep", action="store_true",
                         help="compare a few (model, effort) configurations")
-    parser.add_argument("--stub", action="store_true",
-                        help="run the checks against the stub engine. Costs nothing and must "
-                             "score 100%% — it validates the harness itself, since a check that "
-                             "fails here is a bug in the check rather than in the model.")
     args = parser.parse_args()
 
-    base = Settings(engine="claude")
-    if args.stub:
-        checks, trace = await run_one(base, use_stub=True)
-        ok = report("stub engine (harness self-test)", checks, trace)
-        raise SystemExit(0 if ok else 1)
-
+    base = Settings()
     if not base.anthropic_api_key or base.anthropic_api_key.startswith("sk-ant-your-key"):
         raise SystemExit("ANTHROPIC_API_KEY is not set in .env — the eval calls the real API.")
 
-    print(f"Fixture expectations cover {len(EXPECTED_EXTRACTIONS)} threads.")
     print(f"Clock pinned to {base.now():%A %d %B %Y}.")
 
     if args.sweep:
@@ -218,7 +202,7 @@ async def main() -> None:
         ]
     else:
         overrides = {k: v for k, v in vars(args).items()
-                     if v and k not in ("sweep", "stub")}
+                     if v and k not in ("sweep",)}
         configs = [("current .env configuration", overrides)]
 
     results = []

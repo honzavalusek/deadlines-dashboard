@@ -353,7 +353,7 @@ class AnalysisOutcome(BaseModel):
     thinking_summary: str = ""
     traces: list[StageTrace] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
-    engine: str = "stub"
+    engine: str = "claude"
 
     @property
     def total_cost_usd(self) -> float:

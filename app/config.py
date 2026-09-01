@@ -22,7 +22,6 @@ class Settings(BaseSettings):
 
     # --- LLM ---
     anthropic_api_key: str | None = Field(default=None, alias="ANTHROPIC_API_KEY")
-    engine: Literal["stub", "claude"] = Field(default="stub", alias="ENGINE")
 
     # Two stages, one model, different effort. The split runs the opposite way
     # to intuition: extraction is the subtler reasoning (resolving "do patku"
@@ -67,9 +66,6 @@ class Settings(BaseSettings):
             value = self.now_override
             return value if value.tzinfo else value.replace(tzinfo=self.tz)
         return datetime.now(self.tz)
-
-    def requires_api_key(self) -> bool:
-        return self.engine == "claude"
 
 
 @lru_cache

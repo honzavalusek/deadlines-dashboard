@@ -1,14 +1,12 @@
-"""Deterministic engine with canned answers. No network, no API key, no cost.
+"""Deterministic test double with canned answers. No network, no API key, no cost.
 
-This file does triple duty:
+This file does double duty:
 
-1. It lets the whole app — and every test — run offline. A demo that depends on
-   connectivity is a demo that can die in front of an audience.
-2. It is the **expected-answers table** for ``scripts/eval_models.py``. Each
-   entry below is what a correct analysis of that thread looks like, so the
-   real engine can be diffed against it instead of eyeballed.
-3. It documents the fixture. Reading this next to ``data/seed_*.json`` shows
-   what each adversarial thread is *for*.
+1. It is the ``CommitmentEngine`` the whole test suite runs against, so tests
+   are free, instant and deterministic.
+2. It documents the fixture. Reading this next to ``data/seed_*.json`` shows
+   what each adversarial thread is *for*, and is the expected-answers table
+   the checks in ``scripts/eval_models.py`` are written against.
 
 Every ``due_raw_text`` here is a verbatim substring of the cited message body,
 because validation enforces exactly that on real output too — the stub must not

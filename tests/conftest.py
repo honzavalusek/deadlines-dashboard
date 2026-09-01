@@ -25,7 +25,6 @@ PINNED_NOW = "2026-09-02T09:00:00+02:00"
 @pytest.fixture
 def settings() -> Settings:
     return Settings(
-        engine="stub",
         now_override=PINNED_NOW,
         secret_key="test-secret-key",
         cookie_secure=False,

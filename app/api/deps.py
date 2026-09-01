@@ -1,9 +1,9 @@
 """FastAPI dependencies.
 
-Where the engine is chosen. Everything downstream depends on the
-``CommitmentEngine`` protocol, so flipping ``ENGINE=stub`` to ``ENGINE=claude``
-swaps the implementation without another line changing — which is the same seam
-that would carry a Bedrock client or a real Slack ingestion.
+Where the engine is built. Everything downstream depends on the
+``CommitmentEngine`` protocol rather than ``ClaudeCommitmentEngine`` directly,
+which is the same seam that would carry a Bedrock client or a real Slack
+ingestion, and the one tests use to inject a fake engine.
 """
 
 from __future__ import annotations
@@ -26,6 +26,10 @@ class NeedsLogin(Exception):
     """Raised by the HTML dependency so a browser gets a redirect, not JSON."""
 
 
+class MissingApiKeyError(RuntimeError):
+    """Raised when the engine is requested but ANTHROPIC_API_KEY is unset."""
+
+
 async def get_db() -> AsyncIterator[AsyncSession]:
     async for session in session_scope():
         yield session
@@ -40,24 +44,19 @@ DbDep = Annotated[AsyncSession, Depends(get_db)]
 
 
 def get_engine(settings: SettingsDep) -> CommitmentEngine:
-    """Pick the engine from configuration.
+    """Build the Claude-backed engine.
 
-    The Claude adapter is imported lazily so that running with ``ENGINE=stub``
-    never touches the SDK — the offline path stays genuinely offline.
+    Imported lazily so that a missing key raises the friendly error below
+    before anything tries to import or construct the Anthropic SDK client.
     """
-    if settings.engine == "claude":
-        if not settings.anthropic_api_key:
-            raise RuntimeError(
-                "ENGINE=claude but ANTHROPIC_API_KEY is unset. "
-                "Set the key, or use ENGINE=stub to run offline."
-            )
-        from app.adapters.cached_engine import build_claude_engine
+    if not settings.anthropic_api_key:
+        raise MissingApiKeyError(
+            "ANTHROPIC_API_KEY is not set. Add it to your .env file to run "
+            "the analysis pipeline."
+        )
+    from app.adapters.claude_engine import ClaudeCommitmentEngine
 
-        return build_claude_engine(settings)
-
-    from app.adapters.stub_engine import StubCommitmentEngine
-
-    return StubCommitmentEngine()
+    return ClaudeCommitmentEngine(settings)
 
 
 EngineDep = Annotated[CommitmentEngine, Depends(get_engine)]

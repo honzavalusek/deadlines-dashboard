@@ -91,10 +91,9 @@ English sentence on the board is one hover from its source.
     ┌──────────────────────────┐   ┌─────────────────────────────┐
     │ db/repositories.py       │   │ domain/ports.py             │
     │ concrete, SQLAlchemy     │   │ CommitmentEngine (Protocol) │
-    └──────────────────────────┘   └──────┬───────────┬──────────┘
-                                          ▼           ▼
-                              claude_engine.py   stub_engine.py
-                                    wrapped by cached_engine.py
+    └──────────────────────────┘   └──────────────┬──────────────┘
+                                                   ▼
+                                          claude_engine.py
 
     domain/{models,scoring,dates,validation}.py — pure. No I/O, SQL or HTTP.
 ```
@@ -120,12 +119,13 @@ method. Sign in as the second seeded user and the board changes completely.
 
 ### One port, and why only one
 
-`CommitmentEngine` is the only `Protocol` here. It earns that by having two real
-implementations plus a caching decorator, which buys three concrete things:
+`CommitmentEngine` is the only `Protocol` here. The app itself always talks to
+Claude — there is no offline mode, and a missing `ANTHROPIC_API_KEY` fails loudly
+rather than silently. The port still earns its keep:
 
-- **the app and the whole test suite run with no API key and no network**, so a
-  demo cannot be killed by connectivity;
-- tests are free, instant and deterministic;
+- **the whole test suite runs with no API key and no network**, against a fake
+  engine (`tests/fakes.py`) injected via a dependency override, so tests are
+  free, instant and deterministic without the production code path knowing;
 - "swap in Bedrock" or "swap in real Slack ingestion" is a one-file claim rather
   than hand-waving.
 
@@ -250,13 +250,11 @@ cp .env.example .env
 Open <http://127.0.0.1:8000>. Sign in as `jan@example.com` or `petra@example.com`,
 password `deadlines-demo`.
 
-Works as-is with **no API key**: `ENGINE=stub` is the default and runs entirely
-offline. For the real pipeline, set `ANTHROPIC_API_KEY` and `ENGINE=claude` in
-`.env`, then press **Re-run analysis**.
+Requires `ANTHROPIC_API_KEY` in `.env` — there is no offline mode. Press
+**Re-run analysis** once it's set.
 
 ```bash
 .venv/bin/python -m pytest              # 34 tests, no network, no cost
-.venv/bin/python scripts/eval_models.py --stub   # validates the eval harness
 ```
 
 `NOW_OVERRIDE` pins the clock to 2026-09-02. Without it the fixture's relative
@@ -288,10 +286,10 @@ and one thread that code-switches mid-sentence ("musíme to shipnout do pátku")
 An adversarial fixture is the point. A happy-path fixture proves nothing, and a
 claim a reviewer cannot check is a claim they will discount.
 
-**The same fixture is the test oracle.** `adapters/stub_engine.py` encodes what a
-correct analysis of each thread looks like, so it is simultaneously the offline
-demo, the test double, and the expected-answers table the real engine is scored
-against.
+**The same fixture is the test oracle.** `tests/fakes.py` encodes what a
+correct analysis of each thread looks like, so it is simultaneously the test
+double the suite runs against and the expected-answers table the real engine
+is scored against.
 
 ---
 
@@ -301,15 +299,6 @@ against.
 result against those expectations — 20 checks covering supersession, cancellation,
 over-extraction, all three audience values, ambiguity handling, relative-date
 resolution, the citation guards, output language, and both rank inversions.
-
-`--stub` runs the same checks against the stub for free. It must score 100%, and
-that self-test is the point: a check that fails there is a bug in the check, so
-when the real engine fails one it is the model, not the harness.
-
-```
-$ python scripts/eval_models.py --stub
-  20/20 checks passed
-```
 
 > **Not yet run against the live API.** The Claude path is written and its prompt
 > rendering is verified offline, but it has not been executed against a real key,

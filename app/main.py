@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
@@ -50,7 +50,6 @@ def create_app() -> FastAPI:
     templates.env.filters["day"] = day
     templates.env.filters["stamp"] = stamp
     templates.env.filters["money"] = money
-    templates.env.globals["engine_is_stub"] = settings.engine == "stub"
 
     # Routers hold a module-level template handle so the factory owns the
     # directory rather than each route module guessing at it.
@@ -67,6 +66,15 @@ def create_app() -> FastAPI:
     async def needs_login(request: Request, exc: deps.NeedsLogin) -> RedirectResponse:
         """An unauthenticated browser gets the login form, not a JSON error."""
         return RedirectResponse("/login", status_code=HTTP_303_SEE_OTHER)
+
+    @app.exception_handler(deps.MissingApiKeyError)
+    async def missing_api_key(request: Request, exc: deps.MissingApiKeyError):
+        """A misconfigured server gets a clear message, not a raw 500."""
+        if request.url.path.startswith("/api/"):
+            return JSONResponse({"detail": str(exc)}, status_code=503)
+        return templates.TemplateResponse(
+            request, "config_error.html", {"message": str(exc)}, status_code=503
+        )
 
     return app
 

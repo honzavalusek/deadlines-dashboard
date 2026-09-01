@@ -1,4 +1,4 @@
-"""Login through to a rendered board, against the stub engine.
+"""Login through to a rendered board, against a fake engine.
 
 Worth more than any single unit test here: it exercises auth, the session
 cookie, DI, the pipeline, persistence and the templates in one pass, and it
@@ -15,12 +15,11 @@ from tests.conftest import TEST_PASSWORD
 
 @pytest.fixture
 def client(monkeypatch, tmp_path):
-    """App on a throwaway file database, forced onto the stub engine."""
+    """App on a throwaway file database, forced onto a fake engine."""
     from app.config import Settings, get_settings
 
     db_path = tmp_path / "test.db"
     overrides = Settings(
-        engine="stub",
         now_override="2026-09-02T09:00:00+02:00",
         secret_key="test-secret-key",
         cookie_secure=False,
@@ -31,9 +30,12 @@ def client(monkeypatch, tmp_path):
     monkeypatch.setattr("app.api.deps.get_settings", lambda: overrides, raising=False)
 
     import app.main as main
+    from app.api import deps
+    from tests.fakes import StubCommitmentEngine
 
     monkeypatch.setattr(main, "get_settings", lambda: overrides)
     app = main.create_app()
+    app.dependency_overrides[deps.get_engine] = lambda: StubCommitmentEngine()
 
     with TestClient(app, follow_redirects=False) as c:
         _seed(overrides)

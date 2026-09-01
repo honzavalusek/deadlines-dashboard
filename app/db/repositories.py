@@ -276,7 +276,6 @@ class AnalysisRepository:
                     supersede_chain=[ch.model_dump(mode="json") for ch in c.supersede_chain],
                     reasoning=c.reasoning,
                     quote_verified=c.quote_verified,
-                    date_disagreement=c.date_disagreement,
                     alternative_dues=[d.isoformat() for d in c.alternative_dues],
                     urgency=pr.urgency,
                     importance=pr.importance,
@@ -339,7 +338,6 @@ class AnalysisRepository:
             supersede_chain=[DueChange(**c) for c in (row.supersede_chain or [])],
             reasoning=row.reasoning,
             quote_verified=row.quote_verified,
-            date_disagreement=row.date_disagreement,
             alternative_dues=[date.fromisoformat(d) for d in (row.alternative_dues or [])],
         )
         priority = Priority(

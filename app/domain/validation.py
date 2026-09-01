@@ -4,17 +4,14 @@ Nothing here corrects the model silently. Every check that fails produces a
 flag the dashboard renders, because a wrong answer shown with a warning is
 recoverable and a wrong answer shown confidently is not.
 
-Four guards:
+Three guards:
 
 1. **Dates parse in Python, not in the SDK.** A malformed date becomes a
    warning and a null, never an exception mid-run.
 2. **Verbatim citation.** ``due_raw_text`` must appear literally in the message
    it cites. If it does not, the model may have invented the deadline, so
    confidence is forced down and a badge appears.
-3. **Independent resolution.** ``app.domain.dates`` resolves the same phrase
-   separately; a mismatch surfaces as "needs confirmation" rather than a silent
-   overwrite of either answer.
-4. **Evidence exists.** A cited message id that is not in the thread is a
+3. **Evidence exists.** A cited message id that is not in the thread is a
    fabricated citation and is reported.
 """
 
@@ -22,7 +19,6 @@ from __future__ import annotations
 
 from datetime import date
 
-from app.domain.dates import resolve
 from app.domain.models import (
     Commitment,
     CommitmentDraft,
@@ -114,8 +110,6 @@ def _validate_one(
         for c in draft.supersede_chain
     ]
 
-    date_disagreement = _cross_check(draft, evidence, original_due, current_due, supersede_chain)
-
     # For an unresolved thread, the date the model didn't pick is still a live
     # candidate and the user needs to see both.
     alternatives: list[date] = []
@@ -142,63 +136,5 @@ def _validate_one(
         supersede_chain=supersede_chain,
         reasoning=draft.reasoning,
         quote_verified=quote_verified,
-        date_disagreement=date_disagreement,
         alternative_dues=alternatives,
-    )
-
-
-def _cross_check(
-    draft: CommitmentDraft,
-    evidence: Message | None,
-    original_due: date | None,
-    current_due: date | None,
-    supersede_chain: list[DueChange],
-) -> str | None:
-    """Compare the model's resolved date with Python's own reading of the phrase.
-
-    ``due_raw_text`` cites one specific message, and that citation is not
-    guaranteed to justify ``current_due`` specifically — a moved deadline can
-    still be cited from the message that first set it, and an ambiguous one
-    (``status: "ambiguous"``) has two dates on record precisely because two
-    messages disagreed, either of which the citation may point at. So a match
-    against *any* due date this commitment has ever carried — current,
-    original, or a step in the supersede chain — counts as agreement, not just
-    a match against ``current_due``.
-
-    Only reports when Python is confident *and* disagrees. ``None`` from the
-    resolver means "no opinion", which must never be read as disagreement.
-    """
-    if evidence is None or not draft.due_raw_text or current_due is None:
-        return None
-
-    ours = resolve(draft.due_raw_text, evidence.sent_at)
-    if ours is None:
-        return None
-
-    known_dues = {
-        d
-        for d in (
-            current_due,
-            original_due,
-            *(hop.to_due for hop in supersede_chain),
-            *(hop.from_due for hop in supersede_chain),
-        )
-        if d is not None
-    }
-    if ours in known_dues:
-        return None
-
-    # Not a match against anything on record — a genuine disagreement. Name the
-    # date the cited message most likely justifies, for a clearer message.
-    hop_due = next(
-        (hop.to_due for hop in supersede_chain if hop.message_external_id == evidence.external_id),
-        None,
-    )
-    target = hop_due if hop_due is not None else (original_due if supersede_chain else current_due)
-    if target is None:
-        target = current_due
-
-    return (
-        f"Model resolved {draft.due_raw_text!r} to {target.isoformat()}, "
-        f"but reading it from the message date gives {ours.isoformat()}. Needs confirmation."
     )

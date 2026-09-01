@@ -251,10 +251,6 @@ class Commitment(BaseModel):
     """False when ``due_raw_text`` was not found verbatim in the cited message
     — i.e. the model may have invented the date. Surfaces as a badge."""
 
-    date_disagreement: str | None = None
-    """Set when Python's own resolution of a relative date disagrees with the
-    model's. A visible 'needs confirmation', not a silent overwrite."""
-
     alternative_dues: list[date] = Field(default_factory=list)
     """Other candidate dates found in an unresolved thread (conflicting dates)."""
 

@@ -160,7 +160,6 @@ class CommitmentRow(Base):
     reasoning: Mapped[str] = mapped_column(Text, default="")
 
     quote_verified: Mapped[bool] = mapped_column(Boolean, default=True)
-    date_disagreement: Mapped[str | None] = mapped_column(Text, nullable=True)
     alternative_dues: Mapped[list[str]] = mapped_column(JSON, default=list)
 
     urgency: Mapped[int] = mapped_column(Integer, default=50)

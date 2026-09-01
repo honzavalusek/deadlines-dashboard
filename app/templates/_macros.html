@@ -124,12 +124,6 @@
           {% if not c.quote_verified %}
             <span class="badge warn" title="The quoted deadline text was not found verbatim in the cited message, so the date may be invented.">unverified quote</span>
           {% endif %}
-          {% if c.date_disagreement %}
-            <span class="pop-trigger">
-              <span class="badge warn" tabindex="0" title="{{ c.date_disagreement }}">date disputed</span>
-              {{ conversation_popover(c, messages_by_id, tz) }}
-            </span>
-          {% endif %}
           {% if p.blocked_by %}<span class="badge block">blocked</span>{% endif %}
         </div>
       </div>

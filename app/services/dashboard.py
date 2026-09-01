@@ -138,7 +138,6 @@ def to_json(view: dict[str, Any]) -> dict[str, Any]:
             "bucket": entry.bucket,
             "date_confidence": c.date_confidence,
             "quote_verified": c.quote_verified,
-            "date_disagreement": c.date_disagreement,
             "priority": {
                 "band": p.band,
                 "urgency": p.urgency,

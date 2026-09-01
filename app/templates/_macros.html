@@ -18,28 +18,65 @@
 </svg>
 {% endmacro %}
 
+{# One message's popover content: author, context, timestamp, and body.
+   Shared by every popover below so the format of "the message a claim rests
+   on" stays identical everywhere it's shown. #}
+{% macro message_block(msg, tz) %}
+  {% if msg %}
+    <span class="pop-head">
+      <strong>{{ msg.author }}</strong> · {{ msg.context_label }}<br>
+      {{ msg.sent_at | stamp(tz) }}
+    </span>
+    <span class="pop-body">{{ msg.body | render_body }}</span>
+  {% else %}
+    <span class="pop-head">Original message not found</span>
+  {% endif %}
+{% endmacro %}
+
 {# Source button + hover popover. This is the trust mechanism: every claim on a
    card is one hover from the message it came from. :focus-within is what makes
    it reachable by keyboard, and usable on touch where hover doesn't exist. #}
 {% macro source_button(entry, messages_by_id, tz) %}
   {% set c = entry.commitment %}
-  {% set msg = messages_by_id.get(c.evidence_message_external_id) %}
   <span class="src">
     <button type="button" class="src-btn"
             aria-label="Show the original {{ 'Slack message' if c.source == 'slack' else 'email' }}">
       {{ slack_icon() if c.source == 'slack' else outlook_icon() }}
     </button>
-    <span class="popover" role="tooltip">
-      {% if msg %}
-        <span class="pop-head">
-          <strong>{{ msg.author }}</strong> · {{ msg.context_label }}<br>
-          {{ msg.sent_at | stamp(tz) }}
-        </span>
-        <span class="pop-body">{{ msg.body | highlight(c.evidence_quote, c.due_raw_text) }}</span>
-      {% else %}
-        <span class="pop-head">Original message not found</span>
-      {% endif %}
-    </span>
+    {% if c.supersede_chain %}
+      {# The due date has moved at least once, and evidence_message_external_id
+         may still cite the message that justified the ORIGINAL date rather
+         than the one in force now — show the whole thread so the message
+         explaining the current date is visible either way. #}
+      {{ conversation_popover(c, messages_by_id, tz) }}
+    {% else %}
+      {% set msg = messages_by_id.get(c.evidence_message_external_id) %}
+      <span class="popover" role="tooltip">{{ message_block(msg, tz) }}</span>
+    {% endif %}
+  </span>
+{% endmacro %}
+
+{# Conflict popover: same trust mechanism as source_button, but for a claim
+   that spans the whole thread (an unresolved date, one that disagrees with an
+   independent re-check, or a "moved from" step) rather than a single message.
+   Shows every message in the thread, chronologically, so the user reads the
+   conversation instead of a synthesized sentence — deliberately not pinned to
+   a single message id, because the model isn't reliably consistent about
+   which message it cites for a given change (seen in practice: the same move
+   was attributed to the announcing message in one run and to the other
+   party's one-line reply in another). No spans are marked here either, for
+   the same reason: with several messages in play there's no single phrase
+   that's "the" answer to highlight without misleadingly favoring one. #}
+{% macro conversation_popover(c, messages_by_id, tz) %}
+  {% set thread_messages = messages_by_id.values() | selectattr('thread_key', 'equalto', c.thread_key) | sort(attribute='sent_at') | list %}
+  <span class="popover" role="tooltip">
+    {% if thread_messages %}
+      {% for msg in thread_messages %}
+        <span class="pop-msg">{{ message_block(msg, tz) }}</span>
+      {% endfor %}
+    {% else %}
+      <span class="pop-head">Original messages not found</span>
+    {% endif %}
   </span>
 {% endmacro %}
 
@@ -62,11 +99,14 @@
           {% endif %}
 
           {% for ch in c.supersede_chain %}
-            {% if ch.to_due %}
-              <span class="moved" title="{{ ch.reason }}">moved from {{ ch.from_due | day }}</span>
-            {% else %}
-              <span class="moved" title="{{ ch.reason }}">cancelled {{ ch.from_due | day }}</span>
-            {% endif %}
+            <span class="pop-trigger">
+              {% if ch.to_due %}
+                <span class="moved" tabindex="0" title="{{ ch.reason }}">moved from {{ ch.from_due | day }}</span>
+              {% else %}
+                <span class="moved" tabindex="0" title="{{ ch.reason }}">cancelled {{ ch.from_due | day }}</span>
+              {% endif %}
+              {{ conversation_popover(c, messages_by_id, tz) }}
+            </span>
           {% endfor %}
 
           {% if c.audience == 'my_team' %}<span class="tag">your project</span>{% endif %}
@@ -76,13 +116,19 @@
             <span class="badge" title="{{ c.reasoning }}">{{ c.date_confidence }} confidence</span>
           {% endif %}
           {% if c.alternative_dues %}
-            <span class="badge warn">or {{ c.alternative_dues | map('day') | join(', ') }}?</span>
+            <span class="pop-trigger">
+              <span class="badge warn" tabindex="0" title="Two dates were stated and never resolved — see the conversation.">or {{ c.alternative_dues | map('day') | join(', ') }}?</span>
+              {{ conversation_popover(c, messages_by_id, tz) }}
+            </span>
           {% endif %}
           {% if not c.quote_verified %}
             <span class="badge warn" title="The quoted deadline text was not found verbatim in the cited message, so the date may be invented.">unverified quote</span>
           {% endif %}
           {% if c.date_disagreement %}
-            <span class="badge warn" title="{{ c.date_disagreement }}">date disputed</span>
+            <span class="pop-trigger">
+              <span class="badge warn" tabindex="0" title="{{ c.date_disagreement }}">date disputed</span>
+              {{ conversation_popover(c, messages_by_id, tz) }}
+            </span>
           {% endif %}
           {% if p.blocked_by %}<span class="badge block">blocked</span>{% endif %}
         </div>

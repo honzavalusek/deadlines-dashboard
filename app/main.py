@@ -15,7 +15,7 @@ from starlette.status import HTTP_303_SEE_OTHER
 from app.api import deps, routes_api, routes_auth, routes_dashboard
 from app.config import get_settings
 from app.db.session import create_schema, dispose_engine, init_engine
-from app.api.rendering import day, highlight, money, stamp
+from app.api.rendering import day, money, render_body, stamp
 from app.domain.dates import describe_relative
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -46,7 +46,7 @@ def create_app() -> FastAPI:
 
     templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
     templates.env.filters["relative_day"] = describe_relative
-    templates.env.filters["highlight"] = highlight
+    templates.env.filters["render_body"] = render_body
     templates.env.filters["day"] = day
     templates.env.filters["stamp"] = stamp
     templates.env.filters["money"] = money

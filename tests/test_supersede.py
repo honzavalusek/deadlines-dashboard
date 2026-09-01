@@ -112,6 +112,111 @@ def test_invented_deadline_is_flagged_not_trusted():
     assert any("does not appear" in w for w in warnings)
 
 
+def test_citation_of_the_original_message_is_not_a_disagreement():
+    """due_raw_text may still cite the message that first set the deadline.
+
+    'do pátku' on m1 correctly resolves to Fri 4 Sep (original_due), even
+    though current_due has since moved to Mon 7 Sep via the chain. That is not
+    a disagreement — the citation was never claiming to justify current_due.
+    """
+    extraction = ThreadExtraction(
+        commitments=[
+            CommitmentDraft(
+                task="Prepare the deck", status="moved", owner="Jan", audience="me",
+                audience_reason="addressed by name",
+                original_due="2026-09-04", current_due="2026-09-07",
+                due_kind="relative", date_confidence="high",
+                due_raw_text="do pátku",
+                evidence_message_external_id="m1",
+                evidence_quote="Zvládneš to do pátku?",
+                supersede_chain=[
+                    DueChangeDraft(message_external_id="m2", from_due="2026-09-04",
+                                   to_due="2026-09-07", reason="Petra on leave"),
+                ],
+                reasoning="Moved once, citation still points at the original message.",
+            )
+        ]
+    )
+
+    c = validate_thread(_thread(), extraction, TODAY)[0][0]
+    assert c.date_disagreement is None
+
+
+def test_wrong_original_due_is_still_caught_as_a_disagreement():
+    """The redirect to original_due must still catch a genuine mismatch.
+
+    Same shape as above, but original_due is deliberately wrong for what
+    'do pátku' on m1 actually resolves to (Fri 4 Sep) — the guard should still
+    fire, proving the fix redirects the comparison rather than disabling it.
+    """
+    extraction = ThreadExtraction(
+        commitments=[
+            CommitmentDraft(
+                task="Prepare the deck", status="moved", owner="Jan", audience="me",
+                audience_reason="addressed by name",
+                original_due="2026-09-11", current_due="2026-09-07",
+                due_kind="relative", date_confidence="high",
+                due_raw_text="do pátku",
+                evidence_message_external_id="m1",
+                evidence_quote="Zvládneš to do pátku?",
+                supersede_chain=[
+                    DueChangeDraft(message_external_id="m2", from_due="2026-09-11",
+                                   to_due="2026-09-07", reason="Petra on leave"),
+                ],
+                reasoning="original_due is wrong on purpose for this test.",
+            )
+        ]
+    )
+
+    c = validate_thread(_thread(), extraction, TODAY)[0][0]
+    assert c.date_disagreement is not None
+    assert "2026-09-11" in c.date_disagreement
+    assert "2026-09-04" in c.date_disagreement
+
+
+def _ambiguous_thread() -> Thread:
+    """Two dates stated, never resolved: CFO says 4 Sep, Jan recalls 2 Sep."""
+    return Thread(
+        thread_key="email:board-pack",
+        source="email",
+        messages=(
+            Message(external_id="m1", thread_key="email:board-pack", source="email",
+                    author="CFO", sent_at=datetime(2026, 8, 28, 9, 0, tzinfo=PRAGUE),
+                    body="Potřebuju Q3 board pack do 4. 9.", channel="inbox"),
+            Message(external_id="m2", thread_key="email:board-pack", source="email",
+                    author="Jan", sent_at=datetime(2026, 8, 28, 15, 0, tzinfo=PRAGUE),
+                    body="myslel jsem, že jsme se na poradě dohodli na 2. 9.?", channel="inbox"),
+        ),
+    )
+
+
+def test_ambiguous_citation_of_the_other_candidate_is_not_a_disagreement():
+    """current_due and original_due are BOTH real, disputed dates by design.
+
+    'do 4. 9.' on m1 resolves to Sep 4 (original_due, the candidate not
+    chosen) even though current_due is the earlier Sep 2 the ambiguity rule
+    picked. That is not a disagreement — it is exactly why the thread is
+    ambiguous in the first place.
+    """
+    extraction = ThreadExtraction(
+        commitments=[
+            CommitmentDraft(
+                task="Deliver the Q3 board pack to the CFO", status="ambiguous",
+                owner="Jan", audience="me", audience_reason="asked directly",
+                original_due="2026-09-04", current_due="2026-09-02",
+                due_kind="explicit", date_confidence="low",
+                due_raw_text="do 4. 9.",
+                evidence_message_external_id="m1",
+                evidence_quote="Potřebuju Q3 board pack do 4. 9.",
+                reasoning="Two dates stated, never resolved. Earlier one wins so nothing is missed.",
+            )
+        ]
+    )
+
+    c = validate_thread(_ambiguous_thread(), extraction, TODAY)[0][0]
+    assert c.date_disagreement is None
+
+
 def test_cancellation_clears_the_date_but_keeps_the_history():
     cancelled = ThreadExtraction(
         commitments=[

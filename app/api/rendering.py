@@ -7,21 +7,9 @@ from datetime import date, datetime
 from markupsafe import Markup, escape
 
 
-def highlight(body: str, *spans: str | None) -> Markup:
-    """Escape ``body`` and wrap each given span in a ``<mark>``.
-
-    Used in the hover popover so the exact text a claim rests on is visible
-    inside the original message. Escaping happens first and the ``<mark>`` tags
-    are injected afterwards, so message content can never inject markup.
-    """
-    rendered = str(escape(body))
-    for span in spans:
-        if not span:
-            continue
-        needle = str(escape(span))
-        if needle in rendered:
-            rendered = rendered.replace(needle, f"<mark>{needle}</mark>", 1)
-    return Markup(rendered.replace("\n", "<br>"))
+def render_body(body: str) -> Markup:
+    """Escape a message body for the hover popover, preserving line breaks."""
+    return Markup(str(escape(body)).replace("\n", "<br>"))
 
 
 def day(value: date | datetime | None) -> str:

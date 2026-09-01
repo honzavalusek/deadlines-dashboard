@@ -1,0 +1,93 @@
+{
+  "_comment": [
+    "Fake mailbox export. thread_key stands in for the References/In-Reply-To subject chain.",
+    "'now' for the demo is 2026-09-02T09:00+02:00 (Wednesday)."
+  ],
+  "messages": [
+    {
+      "owner_email": "jan@example.com",
+      "thread_key": "email:acme-security-questionnaire",
+      "external_id": "email:acme-security-questionnaire:1",
+      "subject": "Acme — security questionnaire",
+      "author": "Vendor Management <vendor-mgmt@example.com>",
+      "sent_at": "2026-08-27T16:20:00+02:00",
+      "body": "Ahoj Jane,\n\nprosím o vyplnění security questionnaire pro dodavatele Acme. Potřebujeme to odeslat do čtvrtka 3. 9., abychom stihli schvalovací kolečko.\n\nDíky, VM"
+    },
+    {
+      "owner_email": "jan@example.com",
+      "thread_key": "email:acme-security-questionnaire",
+      "external_id": "email:acme-security-questionnaire:2",
+      "subject": "RE: Acme — security questionnaire",
+      "author": "Vendor Management <vendor-mgmt@example.com>",
+      "sent_at": "2026-09-01T08:15:00+02:00",
+      "body": "Jane, tohle můžeš pustit z hlavy — Acme od výběrového řízení odstoupila, takže questionnaire už není potřeba. Nic nevyplňuj."
+    },
+
+    {
+      "owner_email": "jan@example.com",
+      "thread_key": "email:uohs-filing",
+      "external_id": "email:uohs-filing:1",
+      "subject": "ÚOHS — podání ve věci veřejné zakázky",
+      "author": "JUDr. Martin Bílek <bilek@advokati.example.com>",
+      "sent_at": "2026-09-01T17:40:00+02:00",
+      "body": "Vážený pane Valušku,\n\npodání k ÚOHS musí být na podatelně nejpozději 10. 9. 2026. Jde o zákonnou lhůtu, kterou nelze prodloužit ani prominout; po jejím uplynutí právo zaniká.\n\nPotřebuji od Vás podklady s dostatečnou rezervou.\n\nS pozdravem\nM. Bílek"
+    },
+
+    {
+      "owner_email": "jan@example.com",
+      "thread_key": "email:board-pack",
+      "external_id": "email:board-pack:1",
+      "subject": "Board pack — Q3",
+      "author": "Eva Marešová <cfo@example.com>",
+      "sent_at": "2026-08-31T11:00:00+02:00",
+      "body": "Jane, board pack budu potřebovat do 4. 9., ať to stihnu projít před zasedáním."
+    },
+    {
+      "owner_email": "jan@example.com",
+      "thread_key": "email:board-pack",
+      "external_id": "email:board-pack:2",
+      "subject": "RE: Board pack — Q3",
+      "author": "Jan Valušek <jan@example.com>",
+      "sent_at": "2026-08-31T11:20:00+02:00",
+      "body": "Eva, myslel jsem, že jsme se na poradě dohodli na 2. 9.? Podle toho jsem si to plánoval."
+    },
+    {
+      "owner_email": "jan@example.com",
+      "thread_key": "email:board-pack",
+      "external_id": "email:board-pack:3",
+      "subject": "RE: Board pack — Q3",
+      "author": "Eva Marešová <cfo@example.com>",
+      "sent_at": "2026-08-31T15:45:00+02:00",
+      "body": "Hmm, to si nejsem jistá. Musím se podívat do zápisu a dám vědět."
+    },
+
+    {
+      "owner_email": "jan@example.com",
+      "thread_key": "email:acme-dpa",
+      "external_id": "email:acme-dpa:1",
+      "subject": "Acme — DPA",
+      "author": "Petra Nováková <petra@example.com>",
+      "sent_at": "2026-08-31T13:00:00+02:00",
+      "body": "Ahoj Jane,\n\nDPA pro Acme řeším já, dodám ho do 3. 9. Posílám jen pro přehled, nic od tebe nepotřebuju.\n\nPetra"
+    },
+
+    {
+      "owner_email": "petra@example.com",
+      "thread_key": "email:vendor-contract-review",
+      "external_id": "email:vendor-contract-review:1",
+      "subject": "Revize smlouvy — Contoso",
+      "author": "Procurement <procurement@example.com>",
+      "sent_at": "2026-09-01T09:30:00+02:00",
+      "body": "Petro, prosím o revizi smlouvy s Contoso do 8. 9."
+    },
+    {
+      "owner_email": "petra@example.com",
+      "thread_key": "email:vendor-contract-review",
+      "external_id": "email:vendor-contract-review:2",
+      "subject": "RE: Revize smlouvy — Contoso",
+      "author": "Petra Nováková <petra@example.com>",
+      "sent_at": "2026-09-01T09:45:00+02:00",
+      "body": "Dobře, podívám se na to."
+    }
+  ]
+}

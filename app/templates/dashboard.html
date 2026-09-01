@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% set tz = settings.tz %}
+{% block title %}Deadlines — {{ user.display_name }}{% endblock %}
+
+{% block content %}
+<div class="wrap">
+
+  <div class="asof">
+    Showing what is directed at <strong>{{ user.display_name }}</strong>,
+    as of {{ now | stamp(tz) }}
+    {% if settings.now_override %}<span class="badge" title="NOW_OVERRIDE pins the clock so the fixture's relative dates resolve identically on every run.">pinned clock</span>{% endif %}
+    <form method="post" action="/analyze" class="inline right" onsubmit="return showAnalyzing(event)">
+      <button class="btn-plain">Re-run analysis</button>
+    </form>
+  </div>
+
+  <div id="analyzing-overlay" class="overlay" hidden>
+    <div class="overlay-box" role="dialog" aria-modal="true" aria-live="polite">
+      <span class="spinner"></span>
+      <p class="overlay-title">Analyzing your messages</p>
+      <p class="overlay-sub">This can take a few minutes. Please don't close this tab.</p>
+    </div>
+  </div>
+
+  {% if run.daily_briefing %}
+    <section class="briefing">
+      <h2>Today</h2>
+      <p>{{ run.daily_briefing }}</p>
+    </section>
+  {% endif %}
+
+  {% if top_priorities %}
+    <section class="top">
+      <h2>Highest priority <span class="dim">— ordered by judgment, not by date</span></h2>
+      <ol class="top-list">
+        {% for e in top_priorities %}
+          <li>
+            <span class="chip chip-{{ e.priority.band }}">{{ e.priority.band }}</span>
+            <span class="top-task">{{ e.commitment.task }}</span>
+            <span class="dim">{{ e.commitment.current_due | day if e.commitment.current_due else 'no date' }}</span>
+          </li>
+        {% endfor %}
+      </ol>
+    </section>
+  {% endif %}
+
+  {% if run.warnings %}
+    <section class="warnings">
+      <h2>{{ run.warnings | length }} warning(s) from this run</h2>
+      <ul>{% for w in run.warnings %}<li>{{ w }}</li>{% endfor %}</ul>
+    </section>
+  {% endif %}
+
+  {% if board_count == 0 %}
+    <p class="empty">Nothing on your board. Everything is done, cancelled, or someone else's.</p>
+  {% endif %}
+
+  {% for bucket, label, items in buckets %}
+    <section class="bucket bucket-{{ bucket }}">
+      <h2>{{ label }} <span class="count">{{ items | length }}</span></h2>
+      {% for e in items %}{{ m.card(e, messages_by_id, tz, today) }}{% endfor %}
+    </section>
+  {% endfor %}
+
+  {# Nothing the pipeline produced is silently dropped. Each panel below says
+     why an item is not on the board — a dashboard that discards rows without
+     explanation is indistinguishable from a broken one. #}
+  <div class="panels">
+    {% if completed %}
+      <details class="panel">
+        <summary>Completed <span class="count">{{ completed | length }}</span>
+          <span class="dim">— you marked these</span></summary>
+        {% for e in completed %}{{ m.card(e, messages_by_id, tz, today, muted=true, undo=true) }}{% endfor %}
+      </details>
+    {% endif %}
+
+    {% if detected_done %}
+      <details class="panel">
+        <summary>Looks already done <span class="count">{{ detected_done | length }}</span>
+          <span class="dim">— inferred from the thread, not confirmed by you</span></summary>
+        {% for e in detected_done %}{{ m.card(e, messages_by_id, tz, today, muted=true) }}{% endfor %}
+      </details>
+    {% endif %}
+
+    {% if cancelled %}
+      <details class="panel">
+        <summary>Cancelled <span class="count">{{ cancelled | length }}</span></summary>
+        {% for e in cancelled %}{{ m.card(e, messages_by_id, tz, today, muted=true) }}{% endfor %}
+      </details>
+    {% endif %}
+
+    {% if not_yours %}
+      <details class="panel">
+        <summary>Not yours <span class="count">{{ not_yours | length }}</span>
+          <span class="dim">— someone else owns these</span></summary>
+        {% for e in not_yours %}
+          <p class="reason">{{ e.commitment.audience_reason }}</p>
+          {{ m.card(e, messages_by_id, tz, today, muted=true) }}
+        {% endfor %}
+      </details>
+    {% endif %}
+
+    {% if dismissals %}
+      <details class="panel">
+        <summary>Considered and dismissed <span class="count">{{ dismissals | length }}</span>
+          <span class="dim">— threads with no commitment in them</span></summary>
+        {% for d in dismissals %}
+          <div class="dismissed">
+            <strong>{{ d.thread_label }}</strong>
+            <span class="tag">{{ d.source }}</span>
+            <p>{{ d.reason }}</p>
+          </div>
+        {% endfor %}
+      </details>
+    {% endif %}
+  </div>
+
+  <footer class="audit">
+    <details>
+      <summary>How this was produced</summary>
+      <table class="trace">
+        <tr><th>Stage</th><th>Model</th><th>Effort</th></tr>
+        <tr><td>1 · extract per thread</td><td>{{ run.extract_model or run.engine }}</td><td>{{ run.extract_effort or '—' }}</td></tr>
+        <tr><td>2 · prioritize the set</td><td>{{ run.prioritize_model or run.engine }}</td><td>{{ run.prioritize_effort or '—' }}</td></tr>
+      </table>
+      <p class="trace-totals">
+        {{ run.input_tokens }} in / {{ run.output_tokens }} out tokens
+        {%- if run.cached_tokens %} ({{ run.cached_tokens }} cached){% endif %}
+        · {{ run.cost_usd | money }} estimated
+        · {{ run.latency_ms }} ms
+      </p>
+      <p class="dim">
+        Dates, buckets and the ordering above are computed in Python, not by the model.
+        The model supplies urgency, importance and the reasoning; it never sorts and never
+        does date arithmetic.
+      </p>
+      {% if run.thinking_summary %}
+        <details class="thinking">
+          <summary>Model reasoning for the prioritisation pass</summary>
+          <pre>{{ run.thinking_summary }}</pre>
+        </details>
+      {% endif %}
+    </details>
+  </footer>
+
+</div>
+
+<script>
+  // The request is driven here rather than by a native form POST for two
+  // reasons: a committed navigation stops the browser painting this document,
+  // so the modal would never appear; and owning the request is what lets the
+  // page swap happen only once the analysis has actually come back.
+  function showAnalyzing(event) {
+    event.preventDefault();
+
+    var form = event.target;
+    var button = form.querySelector("button");
+    document.getElementById("analyzing-overlay").hidden = false;
+    document.body.style.overflow = "hidden";
+    button.disabled = true;
+
+    fetch("/analyze", { method: "POST" })
+      .then(function () {
+        window.location.href = "/dashboard";
+      })
+      .catch(function () {
+        // Never leave an undismissable modal stuck over a failed call.
+        document.getElementById("analyzing-overlay").hidden = true;
+        document.body.style.overflow = "";
+        button.disabled = false;
+        alert("The analysis failed to run. Please try again.");
+      });
+
+    return false;
+  }
+</script>
+{% endblock %}

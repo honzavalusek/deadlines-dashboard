@@ -113,8 +113,23 @@ def evaluate(commitments: list[Commitment], board_order: list[str]) -> list[Chec
         f"alternative_dues={board[0].alternative_dues if board else 'missing'}")
 
     # --- output language --------------------------------------------------
+    # Proper nouns are exempt. "Send the board pack to Eva Marešová" is correct
+    # English output — the name is spelled the way the thread spells it, and
+    # anglicising it would be a bug, not a fix. Only lower-case words carrying
+    # Czech diacritics indicate the task text itself was left untranslated.
     czech_markers = ("ě", "š", "č", "ř", "ž", "ů", "ď", "ň")
-    czech_tasks = [c.task for c in commitments if any(m in c.task.lower() for m in czech_markers)]
+
+    # The first word is never exempt: tasks are imperative, so it is a verb, and
+    # a capitalised Czech verb ("Připravit deck") is exactly the failure this
+    # check exists to catch.
+    def untranslated(task: str) -> bool:
+        return any(
+            (i == 0 or not word[:1].isupper())
+            and any(m in word.lower() for m in czech_markers)
+            for i, word in enumerate(task.split())
+        )
+
+    czech_tasks = [c.task for c in commitments if untranslated(c.task)]
     add("language/tasks-english", not czech_tasks, f"non-English task text: {czech_tasks}")
     citations_kept = [c for c in commitments if c.due_raw_text]
     add("language/citations-verbatim", bool(citations_kept),
@@ -258,15 +273,15 @@ async def main() -> None:
 
     if args.sweep:
         configs = [
-            ("sonnet-5 @ medium/high  (shipped default)",
-             dict(extract_model="claude-sonnet-5", extract_effort="medium",
-                  prioritize_model="claude-sonnet-5", prioritize_effort="high")),
-            ("sonnet-5 @ low/medium   (cheaper)",
-             dict(extract_model="claude-sonnet-5", extract_effort="low",
-                  prioritize_model="claude-sonnet-5", prioritize_effort="medium")),
-            ("opus-5 extract @ high   (escalated stage 1)",
+            ("opus extract @ high     (shipped default)",
              dict(extract_model="claude-opus-5", extract_effort="high",
                   prioritize_model="claude-sonnet-5", prioritize_effort="high")),
+            ("sonnet-5 @ medium/high  (cheaper)",
+             dict(extract_model="claude-sonnet-5", extract_effort="medium",
+                  prioritize_model="claude-sonnet-5", prioritize_effort="high")),
+            ("sonnet-5 @ low/medium   (cheapest)",
+             dict(extract_model="claude-sonnet-5", extract_effort="low",
+                  prioritize_model="claude-sonnet-5", prioritize_effort="medium")),
         ]
     else:
         # "sweep" and "repeat" drive the harness, not the engine — they are not

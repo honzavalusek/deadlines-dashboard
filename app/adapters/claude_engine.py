@@ -1,15 +1,19 @@
 """The real engine: two Claude calls per analysis.
 
-Stage 1 maps over threads concurrently at ``medium`` effort. Stage 2 reduces the
-whole set in one call at ``high`` effort, with adaptive thinking, and keeps the
-summarised reasoning for the audit panel.
+Stage 1 maps over threads concurrently on Opus. Stage 2 reduces the whole set in
+one call on Sonnet, with adaptive thinking, and keeps the summarised reasoning
+for the audit panel. Both run at ``high`` effort.
 
-The effort split runs the opposite way to intuition, and that is deliberate.
-Prioritisation sounds like the harder problem, but it ranks an already-clean
-table. The subtler reasoning is in extraction: resolving "do pátku" against the
-date of the message it appears in, noticing that a later message supersedes an
-earlier deadline rather than adding a second task, and reading "dodavatel
-odstoupil" as a cancellation. That is where the headroom goes.
+Extraction gets the larger model because that is where the reasoning is subtle:
+resolving "do pátku" against the date of the message it appears in, noticing
+that a later message supersedes an earlier deadline rather than adding a second
+task, and reading "dodavatel odstoupil" as a cancellation. Prioritisation
+sounds like the harder problem but ranks an already-clean table.
+
+That split is measured rather than argued — ``scripts/eval_models.py`` scores
+each configuration against the fixture's known-correct answers, and Sonnet
+extraction loses two behaviours outright at any effort level. See the README
+section "Where the model choice came from" for the numbers.
 
 Both stages use ``messages.parse`` with a Pydantic model, so the response is
 schema-validated before it reaches us. Note that ``output_format`` and

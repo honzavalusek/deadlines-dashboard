@@ -146,7 +146,7 @@ needs a human-in-the-loop channel, which is a different project.
 
 ```
 threads
-  → extract      per thread, concurrent, sonnet-5 @ medium effort
+  → extract      per thread, concurrent, opus-5 @ high effort
   → validate     three guards, pure Python
   → apply marks  completion state, pure Python
   → prioritize   ONE call over what's left, sonnet-5 @ high effort
@@ -165,28 +165,49 @@ you already did — and it is a smaller set to rank, making the expensive call
 cheaper. User state feeding back into the pipeline as a deterministic pre-filter
 ahead of the reasoning.
 
-### Why Sonnet, not Opus
+### Where the model choice came from
 
-The brief asked for a reasoning model used *optimally*, and reaching for the
-largest model is the opposite of that. At ~25 commitments a run the cost
-difference is cents, so cost is not the argument either. The argument is that the
-choice should be **evidenced**.
+**Opus extracts, Sonnet ranks.** That is not where this started, and the way it
+changed is the point.
 
-Two corrections to the obvious intuition:
+The original argument was that reaching for the largest model is the opposite of
+using a reasoning model *optimally*, so both stages ran on Sonnet — extraction at
+`medium`, ranking at `high`, on the theory that stage 1 holds the subtler
+reasoning and stage 2 only ranks an already-clean table.
 
-- **Stage 2 is not the hard part.** Ranking a clean 25-row table is well within
-  Sonnet's range. The subtler reasoning is in **stage 1** — resolving "do pátku"
-  against the date of the message it appears in, noticing that a later message
-  supersedes an earlier deadline rather than adding a second task, reading
-  "dodavatel odstoupil, není potřeba" as a cancellation. So the *effort* split
-  runs the opposite way to what the stage names suggest.
-- **Haiku for extraction is a false economy.** `effort` is unsupported on it and
-  thinking still needs the old `budget_tokens` shape, so it would mean a second
-  request shape in the adapter for no real gain. One model, two effort levels,
-  one code path.
+Half of that survived measurement. The other half did not.
 
-`scripts/eval_models.py` is what turns that from an opinion into a measurement —
-see [Evaluation](#evaluation).
+`scripts/eval_models.py` scores each configuration against the fixture's
+known-correct answers, three runs each, because one run cannot separate a real
+difference from output variance:
+
+| Configuration | Checks passing in **every** run |
+|---|---|
+| **opus-5 extract @ high** *(shipped)* | **19/20** |
+| sonnet-5 @ medium/high *(the original default)* | 17/20 |
+| sonnet-5 @ low/medium *(cheaper still)* | 17/20 |
+
+Two results changed the design:
+
+- **Sonnet extraction loses two behaviours outright, 0/3 at both effort levels.**
+  It never extracts the `someone_else` commitment from `acme-dpa`, so the "Not
+  yours" panel stays empty; and it never extracts the blocked, dateless
+  commitment from `eng:pricing-copy`. Opus gets both, 3/3. These are not
+  borderline scores — they are two of the fixture's showcase cases silently
+  producing nothing.
+- **The effort split earned nothing.** Sonnet at medium/high and at low/medium
+  score identically. The original config spent effort where it could not be
+  measured to matter, so the surviving claim is about the *model*, not the knob.
+
+Stage 2 stayed on Sonnet, and that half held up: ranking a clean table is well
+within its range, and escalating it changed nothing measurable.
+
+**Haiku for extraction remains a false economy** for a different reason: `effort`
+is unsupported on it and thinking still needs the old `budget_tokens` shape, so
+it would mean a second request shape in the adapter for no real gain.
+
+The honest summary is that the eval overturned the assumption it was built to
+support. That is what it was for.
 
 ### The three guards
 
@@ -323,21 +344,44 @@ result against those expectations — 20 checks covering supersession, cancellat
 over-extraction, all three audience values, ambiguity handling, relative-date
 resolution, the citation guards, output language, and both rank inversions.
 
-`--sweep` compares sonnet at medium/high against a cheaper low/medium and against
-escalating extraction to Opus. `--repeat N` runs each configuration N times and
-reports per-check pass rates instead of a single score — worth doing before
-drawing any conclusion, because model output varies between runs and one 19/20
-next to one 20/20 cannot distinguish a real difference from noise. A check that
-passes 3/3 is evidence; one that passes 2/3 is flaky, which is itself a finding.
+`--sweep` compares the shipped default against two cheaper Sonnet
+configurations. `--repeat N` runs each one N times and reports per-check pass
+rates instead of a single score — worth doing before drawing any conclusion,
+because model output varies between runs and one 19/20 next to one 20/20 cannot
+distinguish a real difference from noise. A check that passes 3/3 is evidence;
+one that passes 2/3 is flaky, which is itself a finding.
 
 ```bash
 .venv/bin/python scripts/eval_models.py --sweep --repeat 3
 ```
 
-> **Not yet run against the live API.** The checks are verified offline against
-> the fixture expectations — all 20 pass with the stub — but they have not been
-> executed against a real key, so no measured comparison of models or effort
-> levels is reported here yet. That table belongs in this section.
+### Measured
+
+Three configurations, three runs each, against the live API.
+
+| Configuration | Stable | Failing checks | Extract latency |
+|---|---|---|---|
+| **opus-5 extract @ high** *(shipped)* | **19/20** | `language/tasks-english`\* | ~25 s |
+| sonnet-5 @ medium/high | 17/20 | `audience/someone_else` 0/3, `nodate/left-null` 0/3, `language`\* flaky | ~18 s |
+| sonnet-5 @ low/medium | 17/20 | same two, 0/3 each; `cancel/detected` 2/3† | ~15 s |
+
+\* **This failure was a bug in the check, not the model.** It flagged
+`"Send the Q3 board pack to Eva Marešová"` — English task text whose only
+non-ASCII character is a person's name. Opus failed it *more often* precisely
+because it writes better tasks, naming the recipient. The check now exempts
+proper nouns while still catching a sentence-initial Czech verb. The numbers
+above are as measured, before that fix; with it, the two Sonnet rows read 18/20
+and the Opus row 20/20. Those corrected figures are inferred, not re-measured —
+the sweep has not been re-run since.
+
+It cannot catch diacritic-free Czech ("Dodat podklady"), and no diacritic
+heuristic can. Stated rather than papered over.
+
+† One run failed with a live `400 Grammar compilation timed out` from the
+structured-output API while extracting one thread. Worth recording for two
+reasons: the schema is complex enough to occasionally hit that ceiling, and the
+pipeline degraded exactly as designed — one thread became a warning on the board
+instead of blanking the whole run.
 
 ---
 

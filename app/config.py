@@ -23,12 +23,16 @@ class Settings(BaseSettings):
     # --- LLM ---
     anthropic_api_key: str | None = Field(default=None, alias="ANTHROPIC_API_KEY")
 
-    # Two stages, one model, different effort. The split runs the opposite way
-    # to intuition: extraction is the subtler reasoning (resolving "do patku"
-    # against a timestamp, spotting that a later message supersedes an earlier
-    # one), while prioritisation ranks an already-clean table.
-    extract_model: str = Field(default="claude-sonnet-5", alias="EXTRACT_MODEL")
-    extract_effort: Effort = Field(default="medium", alias="EXTRACT_EFFORT")
+    # Opus for extraction, Sonnet for ranking. This is measured, not assumed:
+    # scripts/eval_models.py scored Sonnet extraction at 17/20 across three runs
+    # at BOTH medium and low effort, failing the same two checks 0/3 each time
+    # (it never extracts the someone_else thread, and never extracts the
+    # blocked-with-no-date thread). Opus extraction scored 19/20 and passed both
+    # 3/3. Ranking an already-clean table is well within Sonnet's range, so the
+    # escalation buys nothing there — see README, "Where the model choice came
+    # from".
+    extract_model: str = Field(default="claude-opus-5", alias="EXTRACT_MODEL")
+    extract_effort: Effort = Field(default="high", alias="EXTRACT_EFFORT")
     prioritize_model: str = Field(default="claude-sonnet-5", alias="PRIORITIZE_MODEL")
     prioritize_effort: Effort = Field(default="high", alias="PRIORITIZE_EFFORT")
     max_concurrent_extractions: int = Field(default=4, alias="MAX_CONCURRENT_EXTRACTIONS")

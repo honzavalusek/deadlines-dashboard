@@ -13,7 +13,8 @@ to the user's zone.
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
+from typing import Any, overload
 
 from sqlalchemy import (
     JSON,
@@ -38,14 +39,25 @@ def to_utc(value: datetime) -> datetime:
     """Normalise an aware datetime to UTC for storage."""
     if value.tzinfo is None:
         raise ValueError(f"refusing to store a naive datetime: {value!r}")
-    return value.astimezone(timezone.utc)
+    return value.astimezone(UTC)
+
+
+@overload
+def from_utc(value: datetime) -> datetime: ...
+@overload
+def from_utc(value: None) -> None: ...
 
 
 def from_utc(value: datetime | None) -> datetime | None:
-    """Re-tag a value read back from SQLite as UTC."""
+    """Re-tag a value read back from SQLite as UTC.
+
+    Overloaded so that reading a non-nullable column does not infect the caller
+    with an ``Optional`` it then has to explain away — the nullability of the
+    result is exactly the nullability of the column.
+    """
     if value is None:
         return None
-    return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+    return value if value.tzinfo else value.replace(tzinfo=UTC)
 
 
 class User(Base):
@@ -156,7 +168,7 @@ class CommitmentRow(Base):
 
     evidence_message_external_id: Mapped[str] = mapped_column(String(255))
     evidence_quote: Mapped[str] = mapped_column(Text)
-    supersede_chain: Mapped[list[dict]] = mapped_column(JSON, default=list)
+    supersede_chain: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
     reasoning: Mapped[str] = mapped_column(Text, default="")
 
     quote_verified: Mapped[bool] = mapped_column(Boolean, default=True)

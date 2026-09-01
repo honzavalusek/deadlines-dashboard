@@ -20,6 +20,10 @@ def client(monkeypatch, tmp_path):
 
     db_path = tmp_path / "test.db"
     overrides = Settings(
+        # See tests/conftest.py: without these, Settings picks the real key up
+        # out of .env and any unoverridden engine dependency goes to the live API.
+        _env_file=None,
+        anthropic_api_key=None,
         now_override="2026-09-02T09:00:00+02:00",
         secret_key="test-secret-key",
         cookie_secure=False,
@@ -160,6 +164,28 @@ def test_marking_done_moves_it_off_the_board(client):
     after = client.get("/api/commitments").json()
     assert not any(i["key"] == target["key"] for i in after["board"])
     assert any(i["key"] == target["key"] for i in after["off_board"]["completed"])
+
+
+def test_reading_a_stored_run_does_not_need_an_engine(client):
+    """The read path must not depend on ANTHROPIC_API_KEY.
+
+    Drawing the board renders the last *stored* run and makes no model call, so
+    once a run exists both GETs have to work with no engine available at all.
+    Only ``POST /analyze`` genuinely needs one, and it must still say so clearly
+    rather than failing obscurely.
+    """
+    from app.api import deps
+
+    _login(client)
+    client.get("/dashboard")  # first load, via the stub, creates the stored run
+
+    # No engine obtainable from here on: the override goes away and the test
+    # settings carry no API key, so get_engine would raise MissingApiKeyError.
+    del client.app.dependency_overrides[deps.get_engine]
+
+    assert client.get("/dashboard").status_code == 200
+    assert client.get("/api/commitments").status_code == 200
+    assert client.post("/analyze").status_code == 503
 
 
 def test_reanalysis_does_not_resurrect_completed_work(client):

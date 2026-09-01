@@ -6,7 +6,7 @@ from fastapi import APIRouter, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from app.api.deps import DbDep, EngineDep, SettingsDep, UserDep
+from app.api.deps import DbDep, EngineDep, EngineFactoryDep, SettingsDep, UserDep
 from app.db.repositories import CompletionRepository
 from app.services.dashboard import analyse_and_store, build_view
 
@@ -24,11 +24,11 @@ async def dashboard(
     request: Request,
     db: DbDep,
     user: UserDep,
-    engine: EngineDep,
+    engine: EngineFactoryDep,
     settings: SettingsDep,
 ) -> HTMLResponse:
     view = await build_view(db, user, engine, settings)
-    return templates.TemplateResponse(request, "dashboard.html", view)
+    return templates.TemplateResponse(request, "dashboard.html", view.context())
 
 
 @router.post("/analyze")

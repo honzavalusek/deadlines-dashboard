@@ -10,7 +10,7 @@ from typing import Any
 
 from fastapi import APIRouter
 
-from app.api.deps import ApiUserDep, DbDep, EngineDep, SettingsDep
+from app.api.deps import ApiUserDep, DbDep, EngineFactoryDep, SettingsDep
 from app.services.dashboard import build_view, to_json
 
 router = APIRouter(prefix="/api")
@@ -20,7 +20,7 @@ router = APIRouter(prefix="/api")
 async def commitments(
     db: DbDep,
     user: ApiUserDep,
-    engine: EngineDep,
+    engine: EngineFactoryDep,
     settings: SettingsDep,
 ) -> dict[str, Any]:
     return to_json(await build_view(db, user, engine, settings))

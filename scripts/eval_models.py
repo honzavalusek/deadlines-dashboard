@@ -11,7 +11,13 @@ real Claude run instead of eyeballing it.
     python scripts/eval_models.py --extract-model claude-opus-5 --extract-effort high
 
 Costs real money — one extraction call per thread per configuration, plus one
-prioritisation call. The fixture is 11 threads, so a single config is cents.
+prioritisation call. Jan owns 11 of the fixture's 13 threads, so a single
+configuration is cents.
+
+``--repeat N`` runs each configuration N times. Worth doing before drawing any
+conclusion from a score: model output varies between runs, so a single 19/20 vs
+20/20 cannot distinguish a real difference between two configurations from
+noise. Pass rates across several runs can.
 """
 
 from __future__ import annotations
@@ -97,11 +103,14 @@ def evaluate(commitments: list[Commitment], board_order: list[str]) -> list[Chec
     add("nodate/left-null", bool(press) and press[0].current_due is None,
         f"current_due={press[0].current_due if press else 'missing'}")
 
-    # --- guards: quotes verbatim, Python agrees with the model ------------
+    # --- guards: quotes verbatim, and an unresolved date keeps both candidates
     unverified = [c.task for c in commitments if not c.quote_verified]
     add("guard/quotes-verbatim", not unverified, f"unverified: {unverified}")
-    disputed = [c.task for c in commitments if c.date_disagreement]
-    add("guard/dates-agree", not disputed, f"disputed: {disputed}")
+    # An ambiguous deadline must not silently collapse to one date: the date the
+    # model didn't pick is still live, and the board has to show it.
+    add("guard/both-dates-shown",
+        bool(board) and bool(board[0].alternative_dues),
+        f"alternative_dues={board[0].alternative_dues if board else 'missing'}")
 
     # --- output language --------------------------------------------------
     czech_markers = ("ě", "š", "č", "ř", "ž", "ů", "ď", "ň")
@@ -172,6 +181,60 @@ def report(label: str, checks: list[Check], trace: str) -> bool:
     return passed == len(checks)
 
 
+def report_runs(label: str, runs: list[list[Check]], traces: list[str]) -> bool:
+    """Per-check pass rates across N runs of one configuration.
+
+    The point of repeating: model output varies between runs, so one 19/20 next
+    to one 20/20 says nothing about which configuration is better. A check that
+    passes 3/3 is evidence; a check that passes 2/3 is *flaky*, which is a
+    finding in its own right and worth more than a single green tick.
+
+    Checks are conditional (four of them only run if the supersession thread
+    yielded a commitment at all), so a check can be absent from a run. The
+    denominator stays the total number of runs — an unreached check has not
+    passed — and any shortfall is called out separately rather than hidden.
+    """
+    total = len(runs)
+    order: list[str] = []
+    passed: dict[str, int] = {}
+    present: dict[str, int] = {}
+    details: dict[str, str] = {}
+
+    for checks in runs:
+        for c in checks:
+            if c.name not in present:
+                order.append(c.name)
+                passed[c.name] = present[c.name] = 0
+            present[c.name] += 1
+            if c.passed:
+                passed[c.name] += 1
+            else:
+                details.setdefault(c.name, c.detail)
+
+    print(f"\n{'=' * 78}\n{label}  —  {total} runs\n{'=' * 78}")
+    flaky = 0
+    for name in order:
+        hits = passed[name]
+        if hits == total:
+            mark = "PASS "
+        elif hits == 0:
+            mark = "FAIL "
+        else:
+            mark = "FLAKY"
+            flaky += 1
+        note = "" if hits == total else details.get(name, "")
+        if present[name] < total:
+            note = f"(not reached in {total - present[name]} run(s)) {note}".strip()
+        print(f"  [{mark}] {name:38} {hits}/{total}  {note}")
+
+    stable = sum(1 for name in order if passed[name] == total)
+    print(f"\n  {stable}/{len(order)} checks passed in every run"
+          f"{f', {flaky} flaky' if flaky else ''}")
+    for i, trace in enumerate(traces, start=1):
+        print(f"  run {i}: {trace}")
+    return stable == len(order)
+
+
 async def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--extract-model")
@@ -180,7 +243,12 @@ async def main() -> None:
     parser.add_argument("--prioritize-effort")
     parser.add_argument("--sweep", action="store_true",
                         help="compare a few (model, effort) configurations")
+    parser.add_argument("--repeat", type=int, default=1, metavar="N",
+                        help="run each configuration N times and report per-check "
+                             "pass rates instead of a single score")
     args = parser.parse_args()
+    if args.repeat < 1:
+        raise SystemExit("--repeat must be at least 1")
 
     base = Settings()
     if not base.anthropic_api_key or base.anthropic_api_key.startswith("sk-ant-your-key"):
@@ -201,15 +269,29 @@ async def main() -> None:
                   prioritize_model="claude-sonnet-5", prioritize_effort="high")),
         ]
     else:
+        # "sweep" and "repeat" drive the harness, not the engine — they are not
+        # Settings fields and must never reach model_copy.
         overrides = {k: v for k, v in vars(args).items()
-                     if v and k not in ("sweep",)}
+                     if v and k not in ("sweep", "repeat")}
         configs = [("current .env configuration", overrides)]
 
     results = []
     for label, overrides in configs:
         settings = base.model_copy(update=overrides)
-        checks, trace = await run_one(settings)
-        results.append((label, report(label, checks, trace)))
+        runs: list[list[Check]] = []
+        traces: list[str] = []
+        for i in range(args.repeat):
+            if args.repeat > 1:
+                print(f"\n  … {label}: run {i + 1}/{args.repeat}", flush=True)
+            checks, trace = await run_one(settings)
+            runs.append(checks)
+            traces.append(trace)
+
+        if args.repeat == 1:
+            ok = report(label, runs[0], traces[0])
+        else:
+            ok = report_runs(label, runs, traces)
+        results.append((label, ok))
 
     print(f"\n{'=' * 78}\nSUMMARY\n{'=' * 78}")
     for label, ok in results:

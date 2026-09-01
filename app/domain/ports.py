@@ -1,14 +1,21 @@
 """The one port in this design.
 
-``CommitmentEngine`` is a Protocol because it has two real implementations —
-``ClaudeCommitmentEngine`` and ``StubCommitmentEngine`` — plus a caching
-decorator. That earns the abstraction, and it buys three concrete things:
+``CommitmentEngine`` is a Protocol with a single production implementation,
+``ClaudeCommitmentEngine``. That is a thin justification on its own, so the
+honest case for the abstraction is what it actually buys:
 
-* the app (and the whole test suite) runs with no API key and no network, so a
-  demo cannot be killed by connectivity;
-* tests are free and deterministic;
-* "swap in Bedrock" or "swap in the real Slack API" is a one-file claim rather
-  than hand-waving.
+* **the whole test suite runs with no API key and no network**, against a fake
+  engine (``tests.fakes.StubCommitmentEngine``) injected by a FastAPI
+  dependency override — so tests are free, instant and deterministic without
+  the production code path knowing a fake exists;
+* "swap in Bedrock" or "swap in real Slack ingestion" is a one-file claim
+  rather than hand-waving.
+
+What it deliberately does *not* buy: an offline mode for the running app. There
+isn't one, and a missing ``ANTHROPIC_API_KEY`` fails loudly rather than quietly
+serving invented data. The dashboard is still readable without a key, but for a
+different reason — it renders the last *stored* run, so drawing the board never
+depends on a live call.
 
 Data loading deliberately does *not* get a port — see ``app.db.repositories``.
 """

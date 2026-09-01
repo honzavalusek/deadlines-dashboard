@@ -72,8 +72,8 @@ alt-text task is due **tomorrow** and ranks **last**, because its own requester
 said it was not urgent. A date sort gets both backwards.
 
 Every card carries a Slack or Outlook button. Hovering it opens the original
-message — in Czech — with the exact span the claim rests on highlighted. So every
-English sentence on the board is one hover from its source.
+message — in Czech — alongside the quote the claim rests on. So every English
+sentence on the board is one hover from its source.
 
 ---
 
@@ -147,7 +147,7 @@ needs a human-in-the-loop channel, which is a different project.
 ```
 threads
   → extract      per thread, concurrent, sonnet-5 @ medium effort
-  → validate     four guards, pure Python
+  → validate     three guards, pure Python
   → apply marks  completion state, pure Python
   → prioritize   ONE call over what's left, sonnet-5 @ high effort
   → score        dates, buckets, total order, pure Python
@@ -188,7 +188,7 @@ Two corrections to the obvious intuition:
 `scripts/eval_models.py` is what turns that from an opinion into a measurement —
 see [Evaluation](#evaluation).
 
-### The four guards
+### The three guards
 
 Nothing corrects the model silently. Every failed check produces a flag the UI
 renders, because a wrong answer shown with a warning is recoverable and a wrong
@@ -198,8 +198,16 @@ answer shown confidently is not.
 |---|---|
 | **Dates parse in Python** | A malformed date becomes a warning and a null, never an exception mid-run. |
 | **Verbatim citation** | `due_raw_text` must appear literally in the cited message. If it does not, the deadline may be invented — confidence is forced to `low` and an "unverified quote" badge appears. |
-| **Independent resolution** | `domain/dates.py` resolves the same phrase separately. A mismatch shows as "date disputed", never a silent overwrite of either answer. It returns `None` whenever unsure, because a resolver that guessed would raise false alarms and train the user to ignore the badge. |
 | **Evidence exists** | A cited message id that is not in the thread is a fabricated citation, and is reported. |
+
+An earlier version added a fourth guard: a Python date resolver that re-derived
+the same phrase independently, so a mismatch could be surfaced as "date
+disputed". It was removed. Resolving Czech relative dates well enough to
+*disagree usefully* with the model turned out to need most of the judgment the
+model was there to supply — and a resolver that is wrong more often than the
+thing it checks trains the user to ignore the badge. The honest version of that
+guard is the ambiguity path below: when a date is genuinely unresolved, both
+candidates are shown and the suggested action is to ask.
 
 ### "Is this mine?" — three values, not a boolean
 
@@ -250,15 +258,30 @@ cp .env.example .env
 Open <http://127.0.0.1:8000>. Sign in as `jan@example.com` or `petra@example.com`,
 password `deadlines-demo`.
 
-Requires `ANTHROPIC_API_KEY` in `.env` — there is no offline mode. Press
-**Re-run analysis** once it's set.
-
-```bash
-.venv/bin/python -m pytest              # 34 tests, no network, no cost
-```
+Analysis requires `ANTHROPIC_API_KEY` in `.env` — there is no offline mode. Press
+**Re-run analysis** once it's set. *Reading* the board does not need a key: the
+dashboard renders the last stored run, so only the analysis itself calls out.
 
 `NOW_OVERRIDE` pins the clock to 2026-09-02. Without it the fixture's relative
 dates rot — "do pátku" quietly starts meaning a different day and the demo breaks.
+
+## Development
+
+```bash
+.venv/bin/python -m pytest              # 35 tests, no network, no cost
+.venv/bin/ruff check .
+.venv/bin/mypy
+```
+
+All three run in CI on every push (`.github/workflows/ci.yml`), with no API key
+in the job — so "no network, no cost" is enforced rather than asserted. The test
+fixtures pass `_env_file=None` for the same reason: `Settings` reads `.env` by
+default, and a developer with a real key in theirs would otherwise get a live
+engine the moment a test resolved the engine dependency without overriding it.
+
+`mypy` runs `strict` over `app/domain` and `app/services` — the layers with no
+framework machinery in them, where strictness finds defects rather than
+arguments with plugin-shaped types.
 
 ---
 
@@ -300,11 +323,21 @@ result against those expectations — 20 checks covering supersession, cancellat
 over-extraction, all three audience values, ambiguity handling, relative-date
 resolution, the citation guards, output language, and both rank inversions.
 
-> **Not yet run against the live API.** The Claude path is written and its prompt
-> rendering is verified offline, but it has not been executed against a real key,
-> so no measured comparison of models or effort levels is reported here yet.
-> `--sweep` compares sonnet at medium/high against a cheaper low/medium and
-> against escalating extraction to Opus; that result belongs in this section.
+`--sweep` compares sonnet at medium/high against a cheaper low/medium and against
+escalating extraction to Opus. `--repeat N` runs each configuration N times and
+reports per-check pass rates instead of a single score — worth doing before
+drawing any conclusion, because model output varies between runs and one 19/20
+next to one 20/20 cannot distinguish a real difference from noise. A check that
+passes 3/3 is evidence; one that passes 2/3 is flaky, which is itself a finding.
+
+```bash
+.venv/bin/python scripts/eval_models.py --sweep --repeat 3
+```
+
+> **Not yet run against the live API.** The checks are verified offline against
+> the fixture expectations — all 20 pass with the stub — but they have not been
+> executed against a real key, so no measured comparison of models or effort
+> levels is reported here yet. That table belongs in this section.
 
 ---
 
@@ -325,9 +358,10 @@ Scoped deliberately — a PoC, not a product.
   would invite users.
 - **The briefing belongs to a run**, so after an undo it stays stale until the
   next re-run.
-- **`dates.py` covers Czech and English patterns only**, and only the ones it can
-  resolve confidently. That is intentional — it exists to disagree, so silence
-  must mean "no opinion" rather than "no problem".
+- **No independent check on the model's date arithmetic.** Every resolved date
+  rests on the model plus the verbatim-citation guard; there is no second
+  opinion. See [The three guards](#the-three-guards) for why the one that
+  existed was removed rather than kept.
 
 ## Where this would go next
 

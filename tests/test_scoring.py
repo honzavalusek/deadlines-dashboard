@@ -11,8 +11,8 @@ from datetime import date
 
 import pytest
 
-from app.domain.scoring import bucket_for, days_until, sort_key
 from app.domain.models import Commitment, Priority, ScoredCommitment
+from app.domain.scoring import bucket_for, days_until, sort_key
 
 WEDNESDAY = date(2026, 9, 2)
 

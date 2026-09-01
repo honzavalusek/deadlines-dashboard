@@ -50,7 +50,6 @@ class Settings(BaseSettings):
 
     # --- Storage ---
     database_url: str = Field(default="sqlite+aiosqlite:///./deadlines.db", alias="DATABASE_URL")
-    llm_cache_dir: str = Field(default="data/.cache", alias="LLM_CACHE_DIR")
 
     @property
     def tz(self) -> ZoneInfo:

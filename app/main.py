@@ -13,9 +13,9 @@ from starlette.middleware.sessions import SessionMiddleware
 from starlette.status import HTTP_303_SEE_OTHER
 
 from app.api import deps, routes_api, routes_auth, routes_dashboard
+from app.api.rendering import day, money, render_body, stamp
 from app.config import get_settings
 from app.db.session import create_schema, dispose_engine, init_engine
-from app.api.rendering import day, money, render_body, stamp
 from app.domain.dates import describe_relative
 
 BASE_DIR = Path(__file__).resolve().parent

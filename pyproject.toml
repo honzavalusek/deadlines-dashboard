@@ -21,11 +21,36 @@ dev = [
     "pytest>=9.1",
     "pytest-asyncio>=1.4",
     "httpx>=0.28",
+    "ruff>=0.16",
+    "mypy>=2.3",
 ]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 110
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# Long lines in both of these are single string literals that must stay
+# verbatim: Field descriptions are the schema text the model actually reads, and
+# the fixture holds Czech evidence quotes the citation guard matches literally.
+# Wrapping them would either change the string or bury it in concatenation.
+"app/domain/models.py" = ["E501"]
+"tests/fakes.py" = ["E501"]
+
+[tool.mypy]
+python_version = "3.13"
+# Scoped to the pure layers. These have no SQLAlchemy or FastAPI machinery in
+# them, so they can be held to a strict standard that would otherwise mean
+# arguing with plugin-shaped types rather than finding real defects.
+files = ["app/domain", "app/services"]
+strict = true
+warn_unreachable = true
 
 [tool.setuptools.packages.find]
 include = ["app*"]

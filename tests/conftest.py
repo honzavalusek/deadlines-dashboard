@@ -25,6 +25,13 @@ PINNED_NOW = "2026-09-02T09:00:00+02:00"
 @pytest.fixture
 def settings() -> Settings:
     return Settings(
+        # Both of these keep the suite hermetic, and both are load-bearing:
+        # Settings reads .env by default, so a developer with a real key in it
+        # would otherwise get a live ClaudeCommitmentEngine the moment a test
+        # resolved the engine dependency without overriding it — turning "no
+        # network, no cost" into a silent stream of real API calls.
+        _env_file=None,
+        anthropic_api_key=None,
         now_override=PINNED_NOW,
         secret_key="test-secret-key",
         cookie_secure=False,

@@ -7,13 +7,14 @@ not a convention the caller is trusted to remember.
 
 These are plain concrete classes, not Protocols. There is exactly one
 implementation and there always will be; an interface here would be
-indirection without a second implementation to justify it. (The
-``CommitmentEngine`` port is different — it genuinely has two.)
+indirection with nothing to justify it. (The ``CommitmentEngine`` port is
+different — see ``app.domain.ports`` for what that abstraction actually buys.)
 """
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
+from typing import Any
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,10 +24,12 @@ from app.db.tables import (
     CommitmentRow,
     CompletionMark,
     DismissedThread,
-    Message as MessageRow,
     User,
     from_utc,
     to_utc,
+)
+from app.db.tables import (
+    Message as MessageRow,
 )
 from app.domain.models import (
     AnalysisOutcome,
@@ -88,7 +91,7 @@ class MessageRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def add_many(self, user_id: int, messages: list[dict]) -> int:
+    async def add_many(self, user_id: int, messages: list[dict[str, Any]]) -> int:
         for m in messages:
             self._session.add(
                 MessageRow(
@@ -141,7 +144,7 @@ class MessageRepository:
             thread_key=row.thread_key,
             source=row.source,  # type: ignore[arg-type]
             author=row.author,
-            sent_at=from_utc(row.sent_at),  # type: ignore[arg-type]
+            sent_at=from_utc(row.sent_at),
             body=row.body,
             channel=row.channel,
             subject=row.subject,
@@ -181,7 +184,7 @@ class CompletionRepository:
                 user_id=user_id,
                 commitment_key=commitment_key,
                 thread_key=thread_key,
-                completed_at=datetime.now(timezone.utc),
+                completed_at=datetime.now(UTC),
             )
         )
         await self._session.flush()
@@ -221,7 +224,7 @@ class AnalysisRepository:
         return list(result.scalars())
 
 
-    async def save_run(self, user_id: int, outcome: "AnalysisOutcome", started_at: datetime) -> AnalysisRun:
+    async def save_run(self, user_id: int, outcome: AnalysisOutcome, started_at: datetime) -> AnalysisRun:
         """Persist a completed run.
 
         ``finished_at`` is set last and ``latest_run`` filters on it being
@@ -297,7 +300,7 @@ class AnalysisRepository:
                 )
             )
 
-        run.finished_at = to_utc(datetime.now(timezone.utc))
+        run.finished_at = to_utc(datetime.now(UTC))
         await self._session.flush()
         return run
 

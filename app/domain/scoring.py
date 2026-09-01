@@ -12,6 +12,7 @@ between runs and impossible to explain to the person reading the board.
 from __future__ import annotations
 
 from datetime import date, timedelta
+from typing import NamedTuple
 
 from app.domain.models import (
     Bucket,
@@ -94,7 +95,16 @@ def score(
     return sorted(scored, key=sort_key)
 
 
-def group_by_bucket(scored: list[ScoredCommitment]) -> list[tuple[Bucket, str, list[ScoredCommitment]]]:
+class BucketGroup(NamedTuple):
+    """One rendered bucket. A NamedTuple so callers can read ``group.items``
+    while the template's ``for bucket, label, items in buckets`` still works."""
+
+    bucket: Bucket
+    label: str
+    items: list[ScoredCommitment]
+
+
+def group_by_bucket(scored: list[ScoredCommitment]) -> list[BucketGroup]:
     """Group the board into buckets, each internally sorted by ``sort_key``.
 
     Empty buckets are dropped: an empty column reads as a bug rather than as
@@ -105,7 +115,7 @@ def group_by_bucket(scored: list[ScoredCommitment]) -> list[tuple[Bucket, str, l
         grouped[item.bucket].append(item)
 
     return [
-        (bucket, BUCKET_LABELS[bucket], sorted(items, key=sort_key))
+        BucketGroup(bucket, BUCKET_LABELS[bucket], sorted(items, key=sort_key))
         for bucket in BUCKET_ORDER
         if (items := grouped[bucket])
     ]

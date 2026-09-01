@@ -8,7 +8,7 @@ ingestion, and the one tests use to inject a fake engine.
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request, status
@@ -60,6 +60,30 @@ def get_engine(settings: SettingsDep) -> CommitmentEngine:
 
 
 EngineDep = Annotated[CommitmentEngine, Depends(get_engine)]
+
+
+def get_engine_factory(request: Request, settings: SettingsDep) -> Callable[[], CommitmentEngine]:
+    """A *deferred* engine, for routes that usually don't need one.
+
+    Reading the dashboard renders the last stored run and makes no model call,
+    so ``GET /dashboard`` must not 503 merely because ``ANTHROPIC_API_KEY`` is
+    unset — the read path has no business depending on the engine at all. But
+    the very first load, before any run exists, does have to analyse. Handing
+    those routes a factory rather than an engine keeps both true: the key check
+    and the client construction happen only if something actually calls it.
+
+    Resolved through ``get_engine`` rather than constructing directly, so a
+    test's ``dependency_overrides[get_engine]`` still takes effect here.
+    """
+
+    def build() -> CommitmentEngine:
+        override = request.app.dependency_overrides.get(get_engine)
+        return override() if override is not None else get_engine(settings)
+
+    return build
+
+
+EngineFactoryDep = Annotated[Callable[[], CommitmentEngine], Depends(get_engine_factory)]
 
 
 async def _load_session_user(request: Request, db: AsyncSession) -> User | None:

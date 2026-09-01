@@ -7,8 +7,6 @@ march back onto the board the next time the pipeline ran.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-
 import pytest
 
 from app.db.repositories import CompletionRepository, MessageRepository, UserRepository

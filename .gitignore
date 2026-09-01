@@ -11,7 +11,7 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 
-# Local database and LLM extraction cache
+# Local database, plus scratch output from local runs
 *.db
 *.sqlite3
 data/.cache/

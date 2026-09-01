@@ -7,8 +7,11 @@ of the service rather than the service itself.
 
 from __future__ import annotations
 
-from datetime import datetime
+from collections.abc import Callable
+from dataclasses import dataclass, fields
+from datetime import date, datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,11 +22,38 @@ from app.db.repositories import (
     MessageRepository,
     UserRepository,
 )
-from app.db.tables import User
-from app.domain.models import AnalysisOutcome, Message, Priority, ScoredCommitment
+from app.db.tables import AnalysisRun, DismissedThread, User
+from app.domain.models import AnalysisOutcome, Bucket, Message, Priority, ScoredCommitment
 from app.domain.ports import CommitmentEngine
-from app.domain.scoring import BUCKET_LABELS, group_by_bucket, score, sort_key
+from app.domain.scoring import BUCKET_LABELS, BucketGroup, group_by_bucket, score, sort_key
 from app.services.radar import run_analysis
+
+
+@dataclass(frozen=True)
+class DashboardView:
+    user: User
+    today: date
+    now: datetime
+    run: AnalysisRun
+    buckets: list[BucketGroup]
+    bucket_labels: dict[Bucket, str]
+    top_priorities: list[ScoredCommitment]
+    board_count: int
+    completed: list[ScoredCommitment]
+    detected_done: list[ScoredCommitment]
+    cancelled: list[ScoredCommitment]
+    not_yours: list[ScoredCommitment]
+    dismissals: list[DismissedThread]
+    messages_by_id: dict[str, Message]
+    engine_name: str
+    settings: Settings
+
+    @property
+    def tz(self) -> ZoneInfo:
+        return self.settings.tz
+
+    def context(self) -> dict[str, Any]:
+        return {f.name: getattr(self, f.name) for f in fields(self)}
 
 
 async def analyse_and_store(
@@ -56,22 +86,35 @@ async def analyse_and_store(
 async def build_view(
     db: AsyncSession,
     user: User,
-    engine: CommitmentEngine,
+    engine: Callable[[], CommitmentEngine],
     settings: Settings,
-) -> dict[str, Any]:
-    """Everything the dashboard template needs.
+) -> DashboardView:
+    """Everything the dashboard needs.
 
     Reads the most recent stored run. Runs the pipeline only if there isn't one
     yet, so a page load never depends on a live API call — the analysis is a
     batch job and the web app reads its output.
+
+    ``engine`` is a factory, not an engine, precisely because of that: the only
+    branch that needs one is the first-ever load. Every subsequent read renders
+    a stored run, and must keep working when ``ANTHROPIC_API_KEY`` is absent.
     """
     analyses = AnalysisRepository(db)
     run = await analyses.latest_run(user.id)
 
     if run is None:
-        await analyse_and_store(db, user, engine, settings)
+        await analyse_and_store(db, user, engine(), settings)
         await db.commit()
         run = await analyses.latest_run(user.id)
+
+    if run is None:
+        # ``latest_run`` only returns runs with ``finished_at`` set, so this
+        # means the analysis we just ran did not land. Failing here is the point:
+        # the alternative is dereferencing None one line later and serving a 500
+        # with a stack trace instead of a diagnosable message.
+        raise RuntimeError(
+            f"analysis completed for user {user.id} but no finished run was stored"
+        )
 
     pairs = await analyses.commitments_of(run.id)
     dismissals = await analyses.dismissals_of(run.id)
@@ -101,27 +144,27 @@ async def build_view(
     cancelled = [item for item in scored if item.commitment.status == "cancelled"]
     not_yours = [item for item in scored if item.commitment.audience == "someone_else"]
 
-    return {
-        "user": user,
-        "today": today,
-        "now": settings.now(),
-        "run": run,
-        "buckets": group_by_bucket(board),
-        "bucket_labels": BUCKET_LABELS,
-        "top_priorities": sorted(board, key=sort_key)[:3],
-        "board_count": len(board),
-        "completed": completed,
-        "detected_done": detected_done,
-        "cancelled": cancelled,
-        "not_yours": not_yours,
-        "dismissals": dismissals,
-        "messages_by_id": messages_by_id,
-        "engine_name": run.engine,
-        "settings": settings,
-    }
+    return DashboardView(
+        user=user,
+        today=today,
+        now=settings.now(),
+        run=run,
+        buckets=group_by_bucket(board),
+        bucket_labels=BUCKET_LABELS,
+        top_priorities=sorted(board, key=sort_key)[:3],
+        board_count=len(board),
+        completed=completed,
+        detected_done=detected_done,
+        cancelled=cancelled,
+        not_yours=not_yours,
+        dismissals=dismissals,
+        messages_by_id=messages_by_id,
+        engine_name=run.engine,
+        settings=settings,
+    )
 
 
-def to_json(view: dict[str, Any]) -> dict[str, Any]:
+def to_json(view: DashboardView) -> dict[str, Any]:
     """The same view as data, for the JSON endpoint."""
 
     def item(entry: ScoredCommitment) -> dict[str, Any]:
@@ -163,29 +206,29 @@ def to_json(view: dict[str, Any]) -> dict[str, Any]:
             "completed_at": c.completed_at.isoformat() if c.completed_at else None,
         }
 
-    run = view["run"]
+    run = view.run
     # Globally ordered by sort_key, NOT grouped by bucket. Each entry carries its
     # bucket so a client can group, but the list order is the canonical judgment
     # order — walking the bucket groups instead would silently discard it, since
     # a critical item due next week sorts after a trivial one due tomorrow.
     board = sorted(
-        (e for bucket in view["buckets"] for e in bucket[2]),
+        (entry for group in view.buckets for entry in group.items),
         key=sort_key,
     )
     return {
-        "as_of": view["now"].isoformat(),
+        "as_of": view.now.isoformat(),
         "engine": run.engine,
         "daily_briefing": run.daily_briefing,
         "board": [item(e) for e in board],
         "off_board": {
-            "completed": [item(e) for e in view["completed"]],
-            "detected_done": [item(e) for e in view["detected_done"]],
-            "cancelled": [item(e) for e in view["cancelled"]],
-            "not_yours": [item(e) for e in view["not_yours"]],
+            "completed": [item(e) for e in view.completed],
+            "detected_done": [item(e) for e in view.detected_done],
+            "cancelled": [item(e) for e in view.cancelled],
+            "not_yours": [item(e) for e in view.not_yours],
         },
         "dismissed_threads": [
             {"thread": d.thread_label, "source": d.source, "reason": d.reason}
-            for d in view["dismissals"]
+            for d in view.dismissals
         ],
         "trace": {
             "extract_model": run.extract_model,

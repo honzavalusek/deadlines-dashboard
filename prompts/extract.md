@@ -41,7 +41,9 @@ This is the most important instruction here.
 
 If a deadline is **set and then changed**, that is **ONE commitment whose date
 moved** — not two commitments. Put the original date in `original_due`, the date
-now in force in `current_due`, and record each change in `supersede_chain`.
+now in force in `current_due`, record each change in `supersede_chain`, and set
+`status: "moved"` (unless it is also cancelled, done, or ambiguous, in which case
+that status wins).
 
 If a deadline is **cancelled**, that is **ONE commitment with
 `status: "cancelled"`** — set `current_due` to null, keep `original_due`, and
@@ -70,10 +72,25 @@ but the reasoning differs, so use the message's own date each time.
 
 Output every date as ISO `YYYY-MM-DD`.
 
+When someone else states a **fixed deadline for a filing, hearing or other event**
+and asks {{PERSON}} for his contribution "in time" / "with enough lead time"
+before it, with no separate date given for his own hand-off, treat that named
+deadline as `current_due` (`due_kind: "explicit"`) rather than leaving the
+commitment undated — his real deadline is that date, not some unstated earlier
+one.
+
 `due_raw_text` must be the deadline phrase **copied character-for-character from
 the message, in its original language**. Do not translate it, do not tidy it, do
 not expand abbreviations. It is checked against the message text automatically,
 and a mismatch is treated as a sign the date may be invented.
+
+The same rule applies to `evidence_quote`: it must be **one uninterrupted span of
+characters, copied exactly**, from a single sentence or two adjacent sentences.
+Never splice separate parts of the message together with "..." — that is checked
+as a literal substring too, so an elided quote fails verification and the
+citation is treated as unverified even when the underlying claim is correct. If
+the date and the obligation are stated in different sentences, quote the one
+that states the due signal.
 
 ## Is it aimed at me?
 

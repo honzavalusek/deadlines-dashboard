@@ -95,9 +95,8 @@ async def build_view(
     yet, so a page load never depends on a live API call — the analysis is a
     batch job and the web app reads its output.
 
-    ``engine`` is a factory, not an engine, precisely because of that: the only
-    branch that needs one is the first-ever load. Every subsequent read renders
-    a stored run, and must keep working when ``ANTHROPIC_API_KEY`` is absent.
+    ``engine`` is a factory because only the first-ever load needs one; later
+    reads must work with no API key.
     """
     analyses = AnalysisRepository(db)
     run = await analyses.latest_run(user.id)
@@ -108,10 +107,7 @@ async def build_view(
         run = await analyses.latest_run(user.id)
 
     if run is None:
-        # ``latest_run`` only returns runs with ``finished_at`` set, so this
-        # means the analysis we just ran did not land. Failing here is the point:
-        # the alternative is dereferencing None one line later and serving a 500
-        # with a stack trace instead of a diagnosable message.
+        # latest_run requires finished_at; a None here means the just-run analysis didn't land.
         raise RuntimeError(
             f"analysis completed for user {user.id} but no finished run was stored"
         )

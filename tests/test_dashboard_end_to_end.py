@@ -20,8 +20,7 @@ def client(monkeypatch, tmp_path):
 
     db_path = tmp_path / "test.db"
     overrides = Settings(
-        # See tests/conftest.py: without these, Settings picks the real key up
-        # out of .env and any unoverridden engine dependency goes to the live API.
+        # See tests/conftest.py — keeps this fixture off the live API too.
         _env_file=None,
         anthropic_api_key=None,
         now_override="2026-09-02T09:00:00+02:00",
@@ -167,20 +166,13 @@ def test_marking_done_moves_it_off_the_board(client):
 
 
 def test_reading_a_stored_run_does_not_need_an_engine(client):
-    """The read path must not depend on ANTHROPIC_API_KEY.
-
-    Drawing the board renders the last *stored* run and makes no model call, so
-    once a run exists both GETs have to work with no engine available at all.
-    Only ``POST /analyze`` genuinely needs one, and it must still say so clearly
-    rather than failing obscurely.
-    """
+    """Reading the dashboard must not require ANTHROPIC_API_KEY; only /analyze does."""
     from app.api import deps
 
     _login(client)
     client.get("/dashboard")  # first load, via the stub, creates the stored run
 
-    # No engine obtainable from here on: the override goes away and the test
-    # settings carry no API key, so get_engine would raise MissingApiKeyError.
+    # No engine available from here on — get_engine would raise MissingApiKeyError.
     del client.app.dependency_overrides[deps.get_engine]
 
     assert client.get("/dashboard").status_code == 200

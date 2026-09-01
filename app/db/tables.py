@@ -49,11 +49,8 @@ def from_utc(value: None) -> None: ...
 
 
 def from_utc(value: datetime | None) -> datetime | None:
-    """Re-tag a value read back from SQLite as UTC.
-
-    Overloaded so that reading a non-nullable column does not infect the caller
-    with an ``Optional`` it then has to explain away — the nullability of the
-    result is exactly the nullability of the column.
+    """Re-tag a value read back from SQLite as UTC. Overloaded so a non-nullable
+    column doesn't come back ``Optional``.
     """
     if value is None:
         return None

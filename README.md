@@ -221,14 +221,10 @@ answer shown confidently is not.
 | **Verbatim citation** | `due_raw_text` must appear literally in the cited message. If it does not, the deadline may be invented — confidence is forced to `low` and an "unverified quote" badge appears. |
 | **Evidence exists** | A cited message id that is not in the thread is a fabricated citation, and is reported. |
 
-An earlier version added a fourth guard: a Python date resolver that re-derived
-the same phrase independently, so a mismatch could be surfaced as "date
-disputed". It was removed. Resolving Czech relative dates well enough to
-*disagree usefully* with the model turned out to need most of the judgment the
-model was there to supply — and a resolver that is wrong more often than the
-thing it checks trains the user to ignore the badge. The honest version of that
-guard is the ambiguity path below: when a date is genuinely unresolved, both
-candidates are shown and the suggested action is to ask.
+An earlier version added a fourth guard — an independent Python date resolver
+to flag mismatches as "date disputed". Removed: resolving Czech relative dates
+well enough to disagree usefully needed the same judgment the model was there
+to supply. The ambiguity path below is the honest version of that guard.
 
 ### "Is this mine?" — three values, not a boolean
 
@@ -294,11 +290,10 @@ dates rot — "do pátku" quietly starts meaning a different day and the demo br
 .venv/bin/mypy
 ```
 
-All three run in CI on every push (`.github/workflows/ci.yml`), with no API key
-in the job — so "no network, no cost" is enforced rather than asserted. The test
-fixtures pass `_env_file=None` for the same reason: `Settings` reads `.env` by
-default, and a developer with a real key in theirs would otherwise get a live
-engine the moment a test resolved the engine dependency without overriding it.
+All three run in CI on every push (`.github/workflows/ci.yml`) with no API key,
+so "no network, no cost" is enforced, not asserted. Test fixtures pass
+`_env_file=None` so a developer's real `.env` key can't leak into an
+unoverridden engine dependency.
 
 `mypy` runs `strict` over `app/domain` and `app/services` — the layers with no
 framework machinery in them, where strictness finds defects rather than
@@ -345,11 +340,9 @@ over-extraction, all three audience values, ambiguity handling, relative-date
 resolution, the citation guards, output language, and both rank inversions.
 
 `--sweep` compares the shipped default against two cheaper Sonnet
-configurations. `--repeat N` runs each one N times and reports per-check pass
-rates instead of a single score — worth doing before drawing any conclusion,
-because model output varies between runs and one 19/20 next to one 20/20 cannot
-distinguish a real difference from noise. A check that passes 3/3 is evidence;
-one that passes 2/3 is flaky, which is itself a finding.
+configurations. `--repeat N` runs each configuration N times and reports
+per-check pass rates instead of one score, since output varies between runs. A
+check passing 3/3 is evidence; 2/3 is flaky — itself a finding.
 
 ```bash
 .venv/bin/python scripts/eval_models.py --sweep --repeat 3

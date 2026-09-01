@@ -7,8 +7,8 @@ not a convention the caller is trusted to remember.
 
 These are plain concrete classes, not Protocols. There is exactly one
 implementation and there always will be; an interface here would be
-indirection with nothing to justify it. (The ``CommitmentEngine`` port is
-different — see ``app.domain.ports`` for what that abstraction actually buys.)
+indirection with nothing to justify it. (``CommitmentEngine`` is different;
+see ``app.domain.ports``.)
 """
 
 from __future__ import annotations

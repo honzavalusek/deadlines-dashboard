@@ -152,9 +152,7 @@ class ClaudeCommitmentEngine:
         warnings: list[str] = []
         usage = {"input": 0, "output": 0, "cached": 0}
 
-        # strict: gather preserves order and length, and this pairing is what
-        # attributes a failure to the right thread. If that ever stopped holding,
-        # silently zipping short would mislabel every warning after the gap.
+        # strict=True: mismatched lengths would silently mislabel a warning to the wrong thread.
         for thread, result in zip(threads, results, strict=True):
             if isinstance(result, BaseException):
                 log.warning("extraction failed for %s: %s", thread.thread_key, result)

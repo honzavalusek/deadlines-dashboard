@@ -63,17 +63,9 @@ EngineDep = Annotated[CommitmentEngine, Depends(get_engine)]
 
 
 def get_engine_factory(request: Request, settings: SettingsDep) -> Callable[[], CommitmentEngine]:
-    """A *deferred* engine, for routes that usually don't need one.
-
-    Reading the dashboard renders the last stored run and makes no model call,
-    so ``GET /dashboard`` must not 503 merely because ``ANTHROPIC_API_KEY`` is
-    unset — the read path has no business depending on the engine at all. But
-    the very first load, before any run exists, does have to analyse. Handing
-    those routes a factory rather than an engine keeps both true: the key check
-    and the client construction happen only if something actually calls it.
-
-    Resolved through ``get_engine`` rather than constructing directly, so a
-    test's ``dependency_overrides[get_engine]`` still takes effect here.
+    """A lazily-built engine: dashboard reads must not need ``ANTHROPIC_API_KEY``,
+    only the first-ever analysis does. Goes through ``get_engine`` so test
+    overrides still apply.
     """
 
     def build() -> CommitmentEngine:

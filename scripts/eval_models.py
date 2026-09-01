@@ -106,8 +106,7 @@ def evaluate(commitments: list[Commitment], board_order: list[str]) -> list[Chec
     # --- guards: quotes verbatim, and an unresolved date keeps both candidates
     unverified = [c.task for c in commitments if not c.quote_verified]
     add("guard/quotes-verbatim", not unverified, f"unverified: {unverified}")
-    # An ambiguous deadline must not silently collapse to one date: the date the
-    # model didn't pick is still live, and the board has to show it.
+    # Ambiguous dates must show both candidates, not collapse to one.
     add("guard/both-dates-shown",
         bool(board) and bool(board[0].alternative_dues),
         f"alternative_dues={board[0].alternative_dues if board else 'missing'}")
@@ -197,17 +196,8 @@ def report(label: str, checks: list[Check], trace: str) -> bool:
 
 
 def report_runs(label: str, runs: list[list[Check]], traces: list[str]) -> bool:
-    """Per-check pass rates across N runs of one configuration.
-
-    The point of repeating: model output varies between runs, so one 19/20 next
-    to one 20/20 says nothing about which configuration is better. A check that
-    passes 3/3 is evidence; a check that passes 2/3 is *flaky*, which is a
-    finding in its own right and worth more than a single green tick.
-
-    Checks are conditional (four of them only run if the supersession thread
-    yielded a commitment at all), so a check can be absent from a run. The
-    denominator stays the total number of runs — an unreached check has not
-    passed — and any shortfall is called out separately rather than hidden.
+    """Per-check pass rates across N runs; flags flaky checks (pass sometimes,
+    not always) instead of collapsing to one score.
     """
     total = len(runs)
     order: list[str] = []
@@ -284,8 +274,7 @@ async def main() -> None:
                   prioritize_model="claude-sonnet-5", prioritize_effort="medium")),
         ]
     else:
-        # "sweep" and "repeat" drive the harness, not the engine — they are not
-        # Settings fields and must never reach model_copy.
+        # sweep/repeat are harness flags, not Settings fields — exclude from model_copy.
         overrides = {k: v for k, v in vars(args).items()
                      if v and k not in ("sweep", "repeat")}
         configs = [("current .env configuration", overrides)]
